@@ -51,7 +51,7 @@ export function LandingPage() {
                 borderRadius: 8,
               }}
             >
-              Ver planos
+              Ver plano
             </button>
           </div>
         </div>
@@ -87,29 +87,14 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* PLANS */}
+      {/* PLANO */}
       <section id="planos" style={{ padding: '60px 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 28, marginBottom: 24 }}>Planos de assinatura</h2>
+          <h2 style={{ fontSize: 28, marginBottom: 24 }}>Plano de assinatura</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 24 }}>
-              <h3>Plano Base</h3>
-              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 97/mês</p>
-              <ul style={{ paddingLeft: 18, color: '#475569' }}>
-                <li>Alertas de produtos virais</li>
-                <li>Até 50 alertas/dia</li>
-                <li>Acesso a todos os nichos</li>
-              </ul>
-              <button
-                onClick={scrollToPlans}
-                style={{ marginTop: 12, width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', cursor: 'pointer' }}
-              >
-                Assinar Base
-              </button>
-            </div>
             <div style={{ border: '2px solid #2563eb', borderRadius: 12, padding: 24, background: '#eff6ff' }}>
               <h3>Plano Premium</h3>
-              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 197/mês</p>
+              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 97/mês</p>
               <ul style={{ paddingLeft: 18, color: '#1e3a8a' }}>
                 <li>Alertas prioritários</li>
                 <li>Até 200 alertas/dia</li>
@@ -119,7 +104,7 @@ export function LandingPage() {
                 onClick={scrollToPlans}
                 style={{ marginTop: 12, width: '100%', padding: 10, borderRadius: 8, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}
               >
-                Assinar Premium
+                Assinar Plano
               </button>
             </div>
           </div>
