@@ -4,36 +4,12 @@
  * Página pública com CTA e modal de cadastro
  */
 
-import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useCallback } from 'react';
 
 export function LandingPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { register } = useAuth();
-  const navigate = useNavigate();
-
-  async function handleRegister(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      await register(email, password, name || undefined);
-      setIsModalOpen(false);
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao cadastrar');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const scrollToPlans = useCallback(() => {
+    document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a' }}>
@@ -49,7 +25,7 @@ export function LandingPage() {
           </p>
           <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={scrollToPlans}
               style={{
                 background: '#22c55e',
                 color: '#0b1220',
@@ -64,7 +40,7 @@ export function LandingPage() {
               Quero receber alertas
             </button>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={scrollToPlans}
               style={{
                 background: 'transparent',
                 color: 'white',
@@ -112,7 +88,7 @@ export function LandingPage() {
       </section>
 
       {/* PLANS */}
-      <section style={{ padding: '60px 24px' }}>
+      <section id="planos" style={{ padding: '60px 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <h2 style={{ fontSize: 28, marginBottom: 24 }}>Planos de assinatura</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
@@ -125,7 +101,7 @@ export function LandingPage() {
                 <li>Acesso a todos os nichos</li>
               </ul>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={scrollToPlans}
                 style={{ marginTop: 12, width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', cursor: 'pointer' }}
               >
                 Assinar Base
@@ -140,7 +116,7 @@ export function LandingPage() {
                 <li>Filtro por nichos</li>
               </ul>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={scrollToPlans}
                 style={{ marginTop: 12, width: '100%', padding: 10, borderRadius: 8, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}
               >
                 Assinar Premium
@@ -150,79 +126,29 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* MODAL CADASTRO */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-            zIndex: 50,
-          }}
-          onClick={() => !isLoading && setIsModalOpen(false)}
-        >
-          <div
-            style={{ background: 'white', padding: 24, borderRadius: 12, maxWidth: 420, width: '100%' }}
-            onClick={(e) => e.stopPropagation()}
+      {/* CTA Final */}
+      <section style={{ padding: '50px 24px', background: '#0b1220', color: 'white' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ marginBottom: 12 }}>Pronto para dominar as tendências?</h2>
+          <p style={{ color: '#cbd5f5', marginBottom: 20 }}>
+            Entre na lista de espera e receba acesso antecipado.
+          </p>
+          <a
+            href="mailto:contato@tiktoktrendalert.com"
+            style={{
+              display: 'inline-block',
+              background: '#22c55e',
+              color: '#0b1220',
+              padding: '12px 20px',
+              borderRadius: 8,
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
           >
-            <h3 style={{ marginTop: 0 }}>Criar conta</h3>
-            <form onSubmit={handleRegister}>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Nome (opcional)</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Senha</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
-
-              {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  padding: 10,
-                  border: 'none',
-                  background: '#22c55e',
-                  color: 'white',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                {isLoading ? 'Criando...' : 'Criar conta'}
-              </button>
-            </form>
-          </div>
+            Quero entrar na lista
+          </a>
         </div>
-      )}
+      </section>
     </div>
   );
 }
