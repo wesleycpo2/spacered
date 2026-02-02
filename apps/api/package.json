@@ -2,9 +2,9 @@
   "name": "@ttbusiness/api",
   "version": "1.0.0",
   "main": "dist/main.js",
-  "scripts": {
+ "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsup src",
+    "build": "prisma generate && tsup src",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit"
   },
