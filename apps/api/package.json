@@ -5,7 +5,8 @@
  "scripts": {
   "dev": "tsx watch src/main.ts",
   "build": "prisma generate && tsup src",
-  "start": "node dist/main.js"
+  "start": "node dist/main.js",
+  "deploy": "prisma migrate deploy && node dist/main.js"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
