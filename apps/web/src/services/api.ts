@@ -4,10 +4,13 @@
  * Cliente HTTP para comunicação com backend
  */
 
-const rawApiUrl = import.meta.env.VITE_API_URL;
-const API_URL = rawApiUrl
-  ? (rawApiUrl.startsWith('http') ? rawApiUrl : `https://${rawApiUrl}`)
+const rawApiUrl = import.meta.env.VITE_API_URL?.trim();
+const normalizedApiUrl = rawApiUrl
+  ? (rawApiUrl.startsWith('http')
+      ? rawApiUrl
+      : `https://${rawApiUrl.replace(/^\/+/, '')}`)
   : 'http://localhost:3333';
+const API_URL = normalizedApiUrl.replace(/\/+$/, '');
 
 interface LoginResponse {
   accessToken: string;

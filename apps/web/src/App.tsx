@@ -6,7 +6,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LoginPage } from './pages/LoginPage';
+import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -36,7 +36,7 @@ function AppRoutes() {
         path="/"
         element={
           <PublicRoute>
-            <LoginPage />
+            <LandingPage />
           </PublicRoute>
         }
       />
