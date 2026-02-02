@@ -1,7 +1,6 @@
 {
   "name": "@ttbusiness/api",
   "version": "1.0.0",
-  "description": "TikTok Trend Alert - API Backend",
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsx watch src/main.ts",
@@ -25,5 +24,8 @@
     "tsup": "^8.2.4",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
   }
 }

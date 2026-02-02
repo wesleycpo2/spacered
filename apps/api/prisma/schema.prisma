@@ -1,0 +1,249 @@
+// ========================================
+// CONFIGURAÇÃO DO PRISMA
+// ========================================
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+// Status da assinatura do usuário
+enum SubscriptionStatus {
+  ACTIVE    // Assinatura ativa
+  CANCELED  // Cancelada pelo usuário
+  EXPIRED   // Expirada por falta de pagamento
+  PENDING   // Aguardando confirmação de pagamento
+}
+
+// Planos disponíveis (100% pagos)
+enum PlanType {
+  BASE     // Plano base (pago padrão)
+  PREMIUM  // Plano premium (pago avançado)
+}
+
+// Canais de notificação
+enum NotificationChannel {
+  TELEGRAM  // Telegram (prioridade inicial)
+  WHATSAPP  // WhatsApp (implementação futura)
+  EMAIL     // Email (notificações secundárias)
+}
+
+// Status do alerta enviado
+enum AlertStatus {
+  PENDING   // Aguardando envio
+  SENT      // Enviado com sucesso
+  FAILED    // Falha no envio
+  QUEUED    // Na fila de envio
+}
+
+// Status do produto viral
+enum ProductStatus {
+  MONITORING  // Em monitoramento
+  VIRAL       // Detectado como viral
+  DECLINED    // Tendência em declínio
+  INACTIVE    // Produto removido ou inativo
+}
+
+// Gateway de pagamento
+enum PaymentGateway {
+  STRIPE  // Stripe (internacional)
+  ASAAS   // Asaas (Brasil)
+}
+
+// ========================================
+// MODELOS
+// ========================================
+
+model User {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String  // Hash bcrypt
+  name     String?
+
+  // Relações
+  subscription       Subscription?
+  notificationConfig NotificationConfig?
+  niches             Niche[]
+  alerts             Alert[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Subscription {
+  id     String             @id @default(uuid())
+  userId String             @unique
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Plano e status
+  planType PlanType          @default(BASE)
+  status   SubscriptionStatus @default(PENDING)
+
+  // Dados de pagamento
+  gateway          PaymentGateway?
+  externalId       String?         @unique // ID no gateway (Stripe/Asaas)
+  paymentMethod    String?         // Tipo: card, boleto, pix
+  
+  // Ciclo de cobrança
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean       @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model NotificationConfig {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Configuração de canais
+  telegramChatId String? // ID do chat privado ou canal
+  whatsappNumber String? // Número WhatsApp
+  emailAddress   String? // Email alternativo (opcional)
+
+  // Preferências de notificação
+  enabledChannels NotificationChannel[]
+  
+  // Horários silenciosos (quiet hours)
+  quietHoursStart Int? // 0-23 (ex: 22 = 22h)
+  quietHoursEnd   Int? // 0-23 (ex: 7 = 7h)
+
+  // Frequência máxima de alertas
+  maxAlertsPerDay Int @default(50)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_configs")
+}
+
+model Niche {
+  id          String  @id @default(uuid())
+  name        String  @unique  // Ex: "Beleza e Cuidados", "Tech Gadgets"
+  slug        String  @unique  // Ex: "beleza-e-cuidados", "tech-gadgets"
+  description String?
+  
+  // Controle
+  isActive    Boolean @default(true)
+  isPremium   Boolean @default(false)  // Nicho exclusivo para premium
+  
+  // Estatísticas
+  productCount Int @default(0)  // Quantidade de produtos neste nicho
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  users    User[]
+  products Product[]
+
+  @@map("niches")
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  tiktokUrl   String        @unique
+  title       String
+  description String?
+  thumbnail   String?
+
+  // Métricas atuais
+  views    BigInt @default(0)
+  likes    BigInt @default(0)
+  comments BigInt @default(0)
+  shares   BigInt @default(0)
+  sales    Int    @default(0)
+
+  // Análise de tendência
+  viralScore Int           @default(0) // 0-100
+  status     ProductStatus @default(MONITORING)
+
+  // Categorização
+  nicheId String?
+  niche   Niche?  @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+
+  // Relações
+  alerts Alert[]
+  trends Trend[]
+
+  // Controle
+  isActive     Boolean  @default(true)
+  lastScrapedAt DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([viralScore])
+  @@index([nicheId])
+  @@map("products")
+}
+
+model Alert {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Informações do alerta
+  message       String
+  channel       NotificationChannel
+  status        AlertStatus         @default(PENDING)
+  
+  // Controle de envio
+  sentAt        DateTime?
+  failedAt      DateTime?
+  errorMessage  String?
+  retryCount    Int                 @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("alerts")
+}
+
+model Trend {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Snapshot de métricas
+  views    BigInt
+  likes    BigInt
+  comments BigInt
+  shares   BigInt
+  sales    Int
+
+  // Análise
+  viralScore Int           @default(0)
+  status     ProductStatus @default(MONITORING)
+
+  // Timestamp do snapshot
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@map("trends")
+}
