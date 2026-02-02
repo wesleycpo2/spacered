@@ -49,114 +49,91 @@ enum ProductStatus {
   MONITORING  // Em monitoramento
   VIRAL       // Detectado como viral
   DECLINED    // Tendência em declínio
-  INACTIVE    // Não está mais ativo
+  INACTIVE    // Produto removido ou inativo
 }
 
 // Gateway de pagamento
 enum PaymentGateway {
   STRIPE  // Stripe (internacional)
-  ASAAS   // Asaas (brasileiro)
+  ASAAS   // Asaas (Brasil)
 }
 
 // ========================================
-// MODELS
+// MODELOS
 // ========================================
 
-// Usuário do sistema
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  password  String   // Hash bcrypt
-  
-  // Controle de acesso
-  isActive  Boolean  @default(true)
-  
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String  // Hash bcrypt
+  name     String?
+
+  // Relações
+  subscription       Subscription?
+  notificationConfig NotificationConfig?
+  niches             Niche[]
+  alerts             Alert[]
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  subscription       Subscription?
-  notificationConfig NotificationConfig?
-  alerts             Alert[]
-  niches             Niche[]  // Nichos de interesse do usuário
-  
+
   @@map("users")
 }
 
-// Assinatura e planos
 model Subscription {
-  id     String   @id @default(uuid())
-  userId String   @unique
-  
-  // Plano atual (100% pago)
-  planType PlanType           @default(BASE)
+  id     String             @id @default(uuid())
+  userId String             @unique
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Plano e status
+  planType PlanType          @default(BASE)
   status   SubscriptionStatus @default(PENDING)
+
+  // Dados de pagamento
+  gateway          PaymentGateway?
+  externalId       String?         @unique // ID no gateway (Stripe/Asaas)
+  paymentMethod    String?         // Tipo: card, boleto, pix
   
-  // Integração com gateway de pagamento
-  paymentGateway    PaymentGateway?
-  stripeCustomerId  String?         @unique  // ID do cliente no Stripe
-  asaasCustomerId   String?         @unique  // ID do cliente no Asaas
-  subscriptionId    String?         @unique  // ID da assinatura no gateway
-  
-  // Datas importantes
-  trialEndsAt   DateTime?  // Fim do período de teste (se houver)
-  currentPeriodStart DateTime?  // Início do período atual
-  currentPeriodEnd   DateTime?  // Fim do período atual (renovação)
-  canceledAt    DateTime?  // Data do cancelamento
-  
-  // Limites do plano
-  maxAlertsPerDay   Int @default(10)  // Limite de alertas por dia (BASE: 10, PREMIUM: ilimitado)
-  maxNiches         Int @default(3)   // Limite de nichos monitorados (BASE: 3, PREMIUM: ilimitado)
-  canAccessPremium  Boolean @default(false)  // Acesso a features premium
-  
+  // Ciclo de cobrança
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean       @default(false)
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("subscriptions")
 }
 
-// Configuração de notificações do usuário
 model NotificationConfig {
   id     String @id @default(uuid())
   userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Configuração de canais
+  telegramChatId String? // ID do chat privado ou canal
+  whatsappNumber String? // Número WhatsApp
+  emailAddress   String? // Email alternativo (opcional)
+
+  // Preferências de notificação
+  enabledChannels NotificationChannel[]
   
-  // Canais ativos
-  telegramEnabled Boolean @default(false)
-  whatsappEnabled Boolean @default(false)
-  emailEnabled    Boolean @default(true)
-  
-  // Dados de contato
-  telegramChatId String?  // Chat ID do Telegram
-  whatsappNumber String?  // Número do WhatsApp (formato internacional)
-  
-  // Preferências de alerta
-  minViralScore      Float @default(70.0)  // Score mínimo para enviar alerta (0-100)
-  alertFrequency     Int   @default(4)     // Frequência de alertas (horas)
-  onlyNewProducts    Boolean @default(false)  // Apenas produtos novos
-  includeMetrics     Boolean @default(true)   // Incluir métricas no alerta
-  
-  // Horários de notificação
-  quietHoursStart Int?  // Hora de início do modo silencioso (0-23)
-  quietHoursEnd   Int?  // Hora de fim do modo silencioso (0-23)
-  timezone        String @default("America/Sao_Paulo")  // Timezone do usuário
-  
+  // Horários silenciosos (quiet hours)
+  quietHoursStart Int? // 0-23 (ex: 22 = 22h)
+  quietHoursEnd   Int? // 0-23 (ex: 7 = 7h)
+
+  // Frequência máxima de alertas
+  maxAlertsPerDay Int @default(50)
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("notification_configs")
 }
 
-// Nichos/categorias de produtos
 model Niche {
   id          String  @id @default(uuid())
   name        String  @unique  // Ex: "Beleza e Cuidados", "Tech Gadgets"
@@ -173,126 +150,100 @@ model Niche {
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  users    User[]     // Usuários interessados neste nicho
-  products Product[]  // Produtos deste nicho
-  trends   Trend[]    // Tendências deste nicho
-  
+
+  // Relações
+  users    User[]
+  products Product[]
+
   @@map("niches")
 }
 
-// Produtos virais do TikTok Shop
 model Product {
-  id          String @id @default(uuid())
-  nicheId     String
-  
-  // Dados do produto
-  tiktokId    String  @unique  // ID do produto no TikTok Shop
-  name        String
+  id          String        @id @default(uuid())
+  tiktokUrl   String        @unique
+  title       String
   description String?
-  price       Float
-  currency    String  @default("BRL")
-  
-  // Links
-  productUrl  String   // URL do produto no TikTok Shop
-  imageUrl    String?  // Imagem principal
-  videoUrl    String?  // Vídeo viral associado
-  
+  thumbnail   String?
+
   // Métricas atuais
-  views       BigInt @default(0)
-  likes       BigInt @default(0)
-  comments    BigInt @default(0)
-  shares      BigInt @default(0)
-  sales       Int    @default(0)     // Vendas estimadas
-  viralScore  Float  @default(0.0)   // Score de viralização (0-100)
-  
-  // Status
-  status         ProductStatus @default(MONITORING)
-  firstDetected  DateTime      @default(now())  // Quando foi detectado
-  lastUpdated    DateTime      @updatedAt        // Última atualização de métricas
-  
+  views    BigInt @default(0)
+  likes    BigInt @default(0)
+  comments BigInt @default(0)
+  shares   BigInt @default(0)
+  sales    Int    @default(0)
+
+  // Análise de tendência
+  viralScore Int           @default(0) // 0-100
+  status     ProductStatus @default(MONITORING)
+
+  // Categorização
+  nicheId String?
+  niche   Niche?  @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+
+  // Relações
+  alerts Alert[]
+  trends Trend[]
+
   // Controle
-  isActive    Boolean @default(true)
-  
+  isActive     Boolean  @default(true)
+  lastScrapedAt DateTime?
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  niche   Niche   @relation(fields: [nicheId], references: [id])
-  alerts  Alert[]
-  trends  Trend[]
-  
-  @@index([nicheId])
-  @@index([viralScore])
+
   @@index([status])
+  @@index([viralScore])
+  @@index([nicheId])
   @@map("products")
 }
 
-// Alertas enviados aos usuários
 model Alert {
-  id        String @id @default(uuid())
+  id        String      @id @default(uuid())
   userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
-  
-  // Dados do alerta
-  channel      NotificationChannel
-  status       AlertStatus         @default(PENDING)
-  message      String              // Conteúdo do alerta
-  
-  // Métricas do produto no momento do alerta
-  productViralScore Float
-  productViews      BigInt
-  productSales      Int
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Informações do alerta
+  message       String
+  channel       NotificationChannel
+  status        AlertStatus         @default(PENDING)
   
   // Controle de envio
-  sentAt       DateTime?  // Quando foi enviado
-  failedReason String?    // Motivo da falha (se houver)
-  retryCount   Int @default(0)  // Tentativas de reenvio
-  
+  sentAt        DateTime?
+  failedAt      DateTime?
+  errorMessage  String?
+  retryCount    Int                 @default(0)
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relacionamentos
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-  
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
+
+  @@index([userId, status])
+  @@index([status, createdAt])
   @@map("alerts")
 }
 
-// Histórico de tendências e métricas
 model Trend {
-  id        String @id @default(uuid())
+  id        String   @id @default(uuid())
   productId String
-  nicheId   String
-  
-  // Snapshot das métricas
-  views      BigInt
-  likes      BigInt
-  comments   BigInt
-  shares     BigInt
-  sales      Int
-  viralScore Float
-  
-  // Variação desde última análise
-  viewsGrowth  Float  @default(0.0)  // Crescimento em %
-  likesGrowth  Float  @default(0.0)
-  salesGrowth  Float  @default(0.0)
-  scoreGrowth  Float  @default(0.0)
-  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Snapshot de métricas
+  views    BigInt
+  likes    BigInt
+  comments BigInt
+  shares   BigInt
+  sales    Int
+
+  // Análise
+  viralScore Int           @default(0)
+  status     ProductStatus @default(MONITORING)
+
   // Timestamp do snapshot
-  recordedAt DateTime @default(now())
-  
-  // Relacionamentos
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  niche   Niche   @relation(fields: [nicheId], references: [id])
-  
-  @@index([productId])
-  @@index([recordedAt])
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
   @@map("trends")
 }
