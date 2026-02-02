@@ -4,9 +4,13 @@
  * Página pública com CTA e modal de cadastro
  */
 
-import { FormEvent, useCallback, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 
 export function LandingPage() {
+  const heroRef = useRef<HTMLDivElement | null>(null);
+  const featureRefs = useRef<HTMLDivElement[]>([]);
+  const planRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,6 +21,46 @@ export function LandingPage() {
 
   const scrollToPlans = useCallback(() => {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    if (heroRef.current) {
+      gsap.fromTo(
+        heroRef.current,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }
+      );
+    }
+
+    if (featureRefs.current.length) {
+      gsap.fromTo(
+        featureRefs.current,
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.7,
+          ease: 'power2.out',
+          stagger: 0.12,
+          delay: 0.15,
+        }
+      );
+    }
+
+    if (planRef.current) {
+      gsap.fromTo(
+        planRef.current,
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.7, ease: 'power2.out', delay: 0.25 }
+      );
+      gsap.to(planRef.current, {
+        y: -6,
+        duration: 2.6,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }, []);
 
   const handleOpenSignup = useCallback(() => {
@@ -54,7 +98,7 @@ export function LandingPage() {
     <div style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a' }}>
       {/* HERO */}
       <section style={{ padding: '80px 24px', background: '#0b1220', color: 'white' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div ref={heroRef} style={{ maxWidth: 1100, margin: '0 auto' }}>
           <h1 style={{ fontSize: 44, marginBottom: 16 }}>
             Descubra o que vai viralizar no TikTok antes dos concorrentes
           </h1>
@@ -116,8 +160,21 @@ export function LandingPage() {
                 title: 'Insights de mercado',
                 text: 'Visualize produtos em alta com dados claros e objetivos.',
               },
-            ].map((item) => (
-              <div key={item.title} style={{ background: 'white', padding: 20, border: '1px solid #e2e8f0', borderRadius: 12 }}>
+            ].map((item, index) => (
+              <div
+                key={item.title}
+                ref={(el) => {
+                  if (el) featureRefs.current[index] = el;
+                }}
+                style={{
+                  background: 'white',
+                  padding: 20,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 12,
+                  boxShadow: '0 8px 20px rgba(15, 23, 42, 0.06)',
+                  transform: 'translateZ(0)'
+                }}
+              >
                 <h3 style={{ marginBottom: 8 }}>{item.title}</h3>
                 <p style={{ margin: 0, color: '#475569' }}>{item.text}</p>
               </div>
@@ -131,7 +188,16 @@ export function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <h2 style={{ fontSize: 28, marginBottom: 24 }}>Plano de assinatura</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-            <div style={{ border: '2px solid #2563eb', borderRadius: 12, padding: 24, background: '#eff6ff' }}>
+            <div
+              ref={planRef}
+              style={{
+                border: '2px solid #2563eb',
+                borderRadius: 12,
+                padding: 24,
+                background: '#eff6ff',
+                boxShadow: '0 18px 40px rgba(37, 99, 235, 0.18)'
+              }}
+            >
               <h3>Plano Premium</h3>
               <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 59,99/mês</p>
               <ul style={{ paddingLeft: 18, color: '#1e3a8a' }}>
