@@ -4,12 +4,51 @@
  * Página pública com CTA e modal de cadastro
  */
 
-import { useCallback } from 'react';
+import { FormEvent, useCallback, useState } from 'react';
 
 export function LandingPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const checkoutUrl = import.meta.env.VITE_CHECKOUT_URL || '';
+
   const scrollToPlans = useCallback(() => {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const handleOpenSignup = useCallback(() => {
+    setError('');
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCheckout = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      setError('');
+
+      if (!name.trim() || !email.trim() || !phone.trim()) {
+        setError('Preencha nome, email e celular.');
+        return;
+      }
+
+      if (!checkoutUrl) {
+        setError('Checkout indisponível. Configure VITE_CHECKOUT_URL.');
+        return;
+      }
+
+      setIsLoading(true);
+      const params = new URLSearchParams({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+      });
+      window.location.href = `${checkoutUrl}?${params.toString()}`;
+    },
+    [checkoutUrl, email, name, phone]
+  );
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a' }}>
@@ -25,7 +64,7 @@ export function LandingPage() {
           </p>
           <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button
-              onClick={scrollToPlans}
+              onClick={handleOpenSignup}
               style={{
                 background: '#22c55e',
                 color: '#0b1220',
@@ -74,8 +113,8 @@ export function LandingPage() {
                 text: 'Receba notificações imediatas e aja rápido no mercado.',
               },
               {
-                title: 'Filtro por nichos',
-                text: 'Plano premium com nichos específicos para você.',
+                title: 'Insights de mercado',
+                text: 'Visualize produtos em alta com dados claros e objetivos.',
               },
             ].map((item) => (
               <div key={item.title} style={{ background: 'white', padding: 20, border: '1px solid #e2e8f0', borderRadius: 12 }}>
@@ -94,14 +133,14 @@ export function LandingPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
             <div style={{ border: '2px solid #2563eb', borderRadius: 12, padding: 24, background: '#eff6ff' }}>
               <h3>Plano Premium</h3>
-              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 97/mês</p>
+              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 59,99/mês</p>
               <ul style={{ paddingLeft: 18, color: '#1e3a8a' }}>
                 <li>Alertas prioritários</li>
                 <li>Até 200 alertas/dia</li>
-                <li>Filtro por nichos</li>
+                <li>Nichos gerais do mercado</li>
               </ul>
               <button
-                onClick={scrollToPlans}
+                onClick={handleOpenSignup}
                 style={{ marginTop: 12, width: '100%', padding: 10, borderRadius: 8, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}
               >
                 Assinar Plano
@@ -118,22 +157,96 @@ export function LandingPage() {
           <p style={{ color: '#cbd5f5', marginBottom: 20 }}>
             Entre na lista de espera e receba acesso antecipado.
           </p>
-          <a
-            href="mailto:contato@tiktoktrendalert.com"
+          <button
+            onClick={handleOpenSignup}
             style={{
-              display: 'inline-block',
               background: '#22c55e',
               color: '#0b1220',
               padding: '12px 20px',
               borderRadius: 8,
               fontWeight: 700,
-              textDecoration: 'none',
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
-            Quero entrar na lista
-          </a>
+            Quero assinar agora
+          </button>
         </div>
       </section>
+
+      {/* MODAL CADASTRO */}
+      {isModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            zIndex: 50,
+          }}
+          onClick={() => !isLoading && setIsModalOpen(false)}
+        >
+          <div
+            style={{ background: 'white', padding: 24, borderRadius: 12, maxWidth: 420, width: '100%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>Cadastro rápido</h3>
+            <form onSubmit={handleCheckout}>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Nome</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8 }}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8 }}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Celular</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8 }}
+                />
+              </div>
+
+              {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: 10,
+                  border: 'none',
+                  background: '#22c55e',
+                  color: 'white',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                {isLoading ? 'Redirecionando...' : 'Ir para checkout'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
