@@ -7,6 +7,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
+import { CheckoutPage } from './pages/CheckoutPage';
 import { DashboardPage } from './pages/DashboardPage';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -46,6 +47,14 @@ function AppRoutes() {
           <PrivateRoute>
             <DashboardPage />
           </PrivateRoute>
+        }
+      />
+      <Route
+        path="/checkout"
+        element={
+          <PublicRoute>
+            <CheckoutPage />
+          </PublicRoute>
         }
       />
     </Routes>

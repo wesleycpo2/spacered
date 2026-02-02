@@ -5,6 +5,7 @@
  */
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 
 export function LandingPage() {
@@ -17,7 +18,7 @@ export function LandingPage() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const checkoutUrl = import.meta.env.VITE_CHECKOUT_URL || '';
+  const navigate = useNavigate();
 
   const scrollToPlans = useCallback(() => {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
@@ -78,20 +79,15 @@ export function LandingPage() {
         return;
       }
 
-      if (!checkoutUrl) {
-        setError('Checkout indisponível. Configure VITE_CHECKOUT_URL.');
-        return;
-      }
-
       setIsLoading(true);
       const params = new URLSearchParams({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
       });
-      window.location.href = `${checkoutUrl}?${params.toString()}`;
+      navigate(`/checkout?${params.toString()}`);
     },
-    [checkoutUrl, email, name, phone]
+    [email, name, navigate, phone]
   );
 
   return (
