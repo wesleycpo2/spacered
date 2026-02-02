@@ -35,7 +35,7 @@ export async function buildServer() {
 
   // CORS - permite requisições do frontend
   await fastify.register(cors, {
-    origin: true, // Em produção, especificar domínios permitidos
+    origin: process.env.FRONTEND_URL || true,
     credentials: true,
   });
 
