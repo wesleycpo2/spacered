@@ -38,6 +38,21 @@ export async function adminRoutes(fastify: FastifyInstance) {
       },
     });
 
+    const serializedProducts = products.map((product) => ({
+      ...product,
+      views: Number(product.views),
+      likes: Number(product.likes),
+      comments: Number(product.comments),
+      shares: Number(product.shares),
+      trends: product.trends.map((trend) => ({
+        ...trend,
+        views: Number(trend.views),
+        likes: Number(trend.likes),
+        comments: Number(trend.comments),
+        shares: Number(trend.shares),
+      })),
+    }));
+
     const signals = await prisma.trendSignal.findMany({
       orderBy: { collectedAt: 'desc' },
       take: 20,
@@ -54,7 +69,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     return reply.send({
       success: true,
-      products,
+      products: serializedProducts,
       signals,
       aiReport: latestReport,
       aiReports,
