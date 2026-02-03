@@ -31,7 +31,7 @@ export function AdminDashboardPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [signals, setSignals] = useState<TrendSignalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('67993133993');
   const [message, setMessage] = useState('');
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
@@ -92,30 +92,63 @@ export function AdminDashboardPage() {
   }, [apiUrl]);
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24, color: '#0f172a' }}>
-      <h1>Dashboard Admin (MVP)</h1>
+    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24, color: '#0f172a', background: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <header style={{ marginBottom: 20 }}>
+          <h1 style={{ marginBottom: 6 }}>Dashboard Admin</h1>
+          <p style={{ color: '#475569', margin: 0 }}>
+            Monitoramento de tendências, sinais e envio de testes.
+          </p>
+        </header>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        <button onClick={runCollect} style={{ padding: '8px 12px' }}>Coletar hashtags</button>
-        <button onClick={() => fetch(`${apiUrl}/admin/collect-all`, { method: 'POST', headers, body: JSON.stringify({ limit: 30 }) }).then(loadOverview)} style={{ padding: '8px 12px' }}>
-          Coletar sinais
-        </button>
-        <input
-          placeholder="WhatsApp (ex: 67999999999)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={{ padding: '8px 12px' }}
-        />
-        <button onClick={sendWhatsAppTest} style={{ padding: '8px 12px' }}>Enviar WhatsApp</button>
-      </div>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 18 }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+            <div style={{ color: '#64748b', fontSize: 12 }}>Produtos monitorados</div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{products.length}</div>
+          </div>
+          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+            <div style={{ color: '#64748b', fontSize: 12 }}>Sinais recentes</div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{signals.length}</div>
+          </div>
+          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+            <div style={{ color: '#64748b', fontSize: 12 }}>Status</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: loading ? '#f59e0b' : '#22c55e' }}>
+              {loading ? 'Carregando...' : 'Ativo'}
+            </div>
+          </div>
+        </section>
 
-      {message && <p>{message}</p>}
+        <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={runCollect} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>
+              Coletar hashtags
+            </button>
+            <button
+              onClick={() => fetch(`${apiUrl}/admin/collect-all`, { method: 'POST', headers, body: JSON.stringify({ limit: 30 }) }).then(loadOverview)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+            >
+              Coletar sinais
+            </button>
+            <input
+              placeholder="WhatsApp (ex: 67999999999)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
+            />
+            <button onClick={sendWhatsAppTest} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#0b1220', fontWeight: 600, cursor: 'pointer' }}>
+              Enviar WhatsApp
+            </button>
+            {message && <span style={{ color: '#475569' }}>{message}</span>}
+          </div>
+        </section>
 
-      {loading ? (
-        <p>Carregando...</p>
-      ) : (
-        <>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {loading ? (
+          <p>Carregando...</p>
+        ) : (
+          <>
+          <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+            <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Produto</th>
@@ -139,7 +172,9 @@ export function AdminDashboardPage() {
             ))}
           </tbody>
         </table>
-        <h2 style={{ marginTop: 24 }}>Sinais recentes</h2>
+          </section>
+          <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+            <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -160,8 +195,10 @@ export function AdminDashboardPage() {
             ))}
           </tbody>
         </table>
+          </section>
         </>
       )}
+      </div>
     </div>
   );
 }
