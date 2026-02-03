@@ -9,6 +9,7 @@ import { prisma } from '../../config/prisma';
 import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
+import { AiAnalyzerService } from '../../services/ai-analyzer.service';
 
 function requireAdmin(requestToken?: string): boolean {
   const required = process.env.ADMIN_TOKEN;
@@ -104,5 +105,27 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const sent = await adapter.sendMessage(phoneNumber, message);
 
     return reply.send({ success: sent });
+  });
+
+  // POST /admin/ai-evaluate
+  fastify.post('/admin/ai-evaluate', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const signals = await prisma.trendSignal.findMany({
+      orderBy: { collectedAt: 'desc' },
+      take: 30,
+    });
+
+    if (signals.length === 0) {
+      return reply.send({ success: false, message: 'Sem sinais para analisar.' });
+    }
+
+    const ai = new AiAnalyzerService();
+    const summary = await ai.analyzeSignals(signals);
+
+    return reply.send({ success: true, summary });
   });
 }
