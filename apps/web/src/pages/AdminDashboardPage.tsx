@@ -27,13 +27,18 @@ interface TrendSignalItem {
   collectedAt: string;
 }
 
+interface AiReportItem {
+  id: string;
+  summary: string;
+  createdAt: string;
+}
+
 export function AdminDashboardPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [signals, setSignals] = useState<TrendSignalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState('67993133993');
-  const [message, setMessage] = useState('');
-  const [aiSummary, setAiSummary] = useState('');
+  const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
+  const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -51,54 +56,10 @@ export function AdminDashboardPage() {
       const data = await res.json();
       setProducts(data.products || []);
       setSignals(data.signals || []);
-    } catch (err) {
-      setMessage('Erro ao carregar overview.');
+      setLatestReport(data.aiReport || null);
+      setAiReports(data.aiReports || []);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function runCollect() {
-    setMessage('Coletando...');
-    const res = await fetch(`${apiUrl}/admin/collect`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ limit: 20 }),
-    });
-    const data = await res.json();
-    setMessage(`Coleta finalizada: ${data.total || 0} itens.`);
-    await loadOverview();
-  }
-
-  async function sendWhatsAppTest() {
-    if (!phone) {
-      setMessage('Informe o número do WhatsApp.');
-      return;
-    }
-
-    setMessage('Enviando WhatsApp...');
-    const res = await fetch(`${apiUrl}/admin/whatsapp-test`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ phoneNumber: phone }),
-    });
-    const data = await res.json();
-    setMessage(data.success ? 'Mensagem enviada (mock).' : 'Falha no envio.');
-  }
-
-  async function runAiEvaluation() {
-    setMessage('Analisando com IA...');
-    const res = await fetch(`${apiUrl}/admin/ai-evaluate`, {
-      method: 'POST',
-      headers,
-    });
-    const data = await res.json();
-    if (data.success) {
-      setAiSummary(data.summary || 'Sem resposta.');
-      setMessage('IA concluída.');
-    } else {
-      setAiSummary('');
-      setMessage(data.message || 'Falha na IA.');
     }
   }
 
@@ -110,6 +71,11 @@ export function AdminDashboardPage() {
 
   const topSignals = signals.slice(0, 6);
   const topProducts = products.slice(0, 6);
+  const formattedLatest = latestReport?.createdAt
+    ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(
+        new Date(latestReport.createdAt)
+      )
+    : null;
 
   return (
     <div
@@ -149,39 +115,9 @@ export function AdminDashboardPage() {
           </div>
           <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
             <div style={{ color: '#94a3b8', fontSize: 12 }}>IA</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: aiSummary ? '#38bdf8' : '#94a3b8' }}>
-              {aiSummary ? 'Resumo pronto' : 'Sem análise'}
+            <div style={{ fontSize: 14, fontWeight: 600, color: latestReport ? '#38bdf8' : '#94a3b8' }}>
+              {latestReport ? 'Resumo pronto' : 'Sem análise'}
             </div>
-          </div>
-        </section>
-
-        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={runCollect} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>
-              Coletar hashtags
-            </button>
-            <button
-              onClick={() => fetch(`${apiUrl}/admin/collect-all`, { method: 'POST', headers, body: JSON.stringify({ limit: 30 }) }).then(loadOverview)}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
-            >
-              Coletar sinais
-            </button>
-            <button
-              onClick={runAiEvaluation}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#eef2ff', cursor: 'pointer' }}
-            >
-              Avaliar com IA
-            </button>
-            <input
-              placeholder="WhatsApp (ex: 67999999999)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
-            />
-            <button onClick={sendWhatsAppTest} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#0b1220', fontWeight: 600, cursor: 'pointer' }}>
-              Enviar WhatsApp
-            </button>
-            {message && <span style={{ color: '#475569' }}>{message}</span>}
           </div>
         </section>
 
@@ -228,10 +164,34 @@ export function AdminDashboardPage() {
           </tbody>
         </table>
           </section>
-          {aiSummary && (
+          {latestReport && (
             <section style={{ background: '#0b1220', color: 'white', borderRadius: 12, padding: 16, marginBottom: 18 }}>
               <h2 style={{ marginTop: 0 }}>Resumo da IA</h2>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, color: '#e2e8f0' }}>{aiSummary}</pre>
+              {formattedLatest && (
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                  Última atualização: {formattedLatest}
+                </div>
+              )}
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, color: '#e2e8f0' }}>
+                {latestReport.summary || 'Sem resumo.'}
+              </pre>
+            </section>
+          )}
+          {aiReports.length > 0 && (
+            <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+              <h2 style={{ marginTop: 0 }}>Histórico da IA</h2>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {aiReports.map((report) => (
+                  <div key={report.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
+                      {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(
+                        new Date(report.createdAt)
+                      )}
+                    </div>
+                    <div style={{ fontSize: 14, color: '#0f172a', whiteSpace: 'pre-wrap' }}>{report.summary}</div>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
