@@ -8,6 +8,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
+import { isAutoCollectorRunning, startAutoCollector, stopAutoCollector } from '../../jobs/auto-collector.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
 import { AiAnalyzerService } from '../../services/ai-analyzer.service';
 
@@ -41,11 +42,55 @@ export async function adminRoutes(fastify: FastifyInstance) {
       take: 20,
     });
 
+    const latestReport = await prisma.aiReport.findFirst({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const aiReports = await prisma.aiReport.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
     return reply.send({
       success: true,
       products,
       signals,
+      aiReport: latestReport,
+      aiReports,
+      autoCollectorRunning: isAutoCollectorRunning(),
     });
+  });
+
+  // POST /admin/auto-collector/start
+  fastify.post('/admin/auto-collector/start', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    startAutoCollector();
+    return reply.send({ success: true, running: isAutoCollectorRunning() });
+  });
+
+  // POST /admin/auto-collector/stop
+  fastify.post('/admin/auto-collector/stop', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    stopAutoCollector();
+    return reply.send({ success: true, running: isAutoCollectorRunning() });
+  });
+
+  // GET /admin/auto-collector/status
+  fastify.get('/admin/auto-collector/status', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    return reply.send({ success: true, running: isAutoCollectorRunning() });
   });
 
   // POST /admin/collect

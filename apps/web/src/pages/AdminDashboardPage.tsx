@@ -39,6 +39,8 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
   const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
+  const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -58,8 +60,25 @@ export function AdminDashboardPage() {
       setSignals(data.signals || []);
       setLatestReport(data.aiReport || null);
       setAiReports(data.aiReports || []);
+      setAutoCollectorRunning(Boolean(data.autoCollectorRunning));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleAutoCollector(action: 'start' | 'stop') {
+    setActionMessage(action === 'start' ? 'Iniciando coleta automática...' : 'Pausando coleta automática...');
+    try {
+      const res = await fetch(`${apiUrl}/admin/auto-collector/${action}`, {
+        method: 'POST',
+        headers,
+      });
+      const data = await res.json();
+      setAutoCollectorRunning(Boolean(data.running));
+      setActionMessage(data.running ? 'Coleta automática ativa.' : 'Coleta automática pausada.');
+      await loadOverview();
+    } catch (err) {
+      setActionMessage('Falha ao atualizar coletor automático.');
     }
   }
 
@@ -114,10 +133,46 @@ export function AdminDashboardPage() {
             </div>
           </div>
           <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-            <div style={{ color: '#94a3b8', fontSize: 12 }}>IA</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: latestReport ? '#38bdf8' : '#94a3b8' }}>
-              {latestReport ? 'Resumo pronto' : 'Sem análise'}
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Automação</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: autoCollectorRunning ? '#38bdf8' : '#94a3b8' }}>
+              {autoCollectorRunning ? 'Rodando' : 'Pausado'}
             </div>
+          </div>
+        </section>
+
+        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={() => toggleAutoCollector('start')}
+              disabled={autoCollectorRunning}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: autoCollectorRunning ? '#e2e8f0' : '#22c55e',
+                color: autoCollectorRunning ? '#64748b' : '#0b1220',
+                cursor: autoCollectorRunning ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ▶ Play
+            </button>
+            <button
+              onClick={() => toggleAutoCollector('stop')}
+              disabled={!autoCollectorRunning}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: !autoCollectorRunning ? '#e2e8f0' : '#ef4444',
+                color: !autoCollectorRunning ? '#64748b' : '#fff',
+                cursor: !autoCollectorRunning ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ⏹ Stop
+            </button>
+            {actionMessage && <span style={{ color: '#475569' }}>{actionMessage}</span>}
           </div>
         </section>
 
