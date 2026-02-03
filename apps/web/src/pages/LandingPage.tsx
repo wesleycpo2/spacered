@@ -195,7 +195,7 @@ export function LandingPage() {
               }}
             >
               <h3>Plano Premium</h3>
-              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 59,99/mês</p>
+              <p style={{ fontSize: 26, margin: '8px 0' }}>R$ 29,90/mês</p>
               <ul style={{ paddingLeft: 18, color: '#1e3a8a' }}>
                 <li>Alertas prioritários</li>
                 <li>Até 200 alertas/dia</li>

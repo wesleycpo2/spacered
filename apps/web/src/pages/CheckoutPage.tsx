@@ -42,7 +42,7 @@ export function CheckoutPage() {
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gap: 16 }}>
           <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 20 }}>
             <h2 style={{ marginTop: 0 }}>Plano Premium</h2>
-            <p style={{ fontSize: 24, margin: '8px 0' }}>R$ 59,99/mês</p>
+            <p style={{ fontSize: 24, margin: '8px 0' }}>R$ 29,90/mês</p>
             <ul style={{ paddingLeft: 18, color: '#475569' }}>
               <li>Alertas prioritários</li>
               <li>Até 200 alertas/dia</li>
