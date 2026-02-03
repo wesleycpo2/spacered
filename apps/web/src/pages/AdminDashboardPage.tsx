@@ -15,6 +15,12 @@ interface ProductItem {
   comments: bigint | number;
   shares: bigint | number;
   lastScrapedAt: string | null;
+  insights?: {
+    growth48h: number;
+    engagementLabel: string;
+    saturationLabel: string;
+    probability: number;
+  };
 }
 
 interface TrendSignalItem {
@@ -314,8 +320,18 @@ export function AdminDashboardPage() {
                   <div style={{ fontSize: 12, color: '#64748b' }}>Score</div>
                   <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>
-                    {Number(p.views).toLocaleString()} views
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{Number(p.views).toLocaleString()} views</div>
+                  <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6 }}>
+                    Cresc. 48h: {p.insights?.growth48h ?? 0}%
+                  </div>
+                  <div style={{ fontSize: 12, color: '#0f172a' }}>
+                    Saturação: {p.insights?.saturationLabel ?? 'n/d'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#0f172a' }}>
+                    Engajamento: {p.insights?.engagementLabel ?? 'n/d'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#0f172a' }}>
+                    Probabilidade: {p.insights?.probability ?? 0}%
                   </div>
                 </div>
               ))}
@@ -375,6 +391,15 @@ export function AdminDashboardPage() {
               </div>
             </section>
           )}
+          <section style={{ background: '#f8fafc', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+            <h2 style={{ marginTop: 0 }}>Como a IA analisa vídeos</h2>
+            <ul style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
+              <li>Crescimento de views nas últimas 48h.</li>
+              <li>Engajamento: (likes + comentários + shares) / views.</li>
+              <li>Saturação: baixa quando o crescimento acelera rápido.</li>
+              <li>Probabilidade semanal combina score + crescimento + engajamento.</li>
+            </ul>
+          </section>
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
             <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
