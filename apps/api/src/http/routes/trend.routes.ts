@@ -102,7 +102,7 @@ export async function trendRoutes(fastify: FastifyInstance) {
 
       const trends = await fastify.prisma.trend.findMany({
         where: { productId },
-        orderBy: { recordedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: 30, // Últimos 30 snapshots
       });
 

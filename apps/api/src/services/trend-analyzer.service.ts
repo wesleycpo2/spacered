@@ -92,7 +92,7 @@ export class TrendAnalyzerService {
     // Busca último snapshot (Trend mais recente)
     const lastTrend = await prisma.trend.findFirst({
       where: { productId },
-      orderBy: { recordedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Se não há histórico, retorna 0% de crescimento
