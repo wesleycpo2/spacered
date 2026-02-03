@@ -4,7 +4,8 @@
   "installCommand": "cd apps/web && npm install",
   "framework": "vite",
   "devCommand": "cd apps/web && npm run dev",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
