@@ -1,11 +1,12 @@
 /**
  * WHATSAPP ADAPTER (MOCK)
  * 
- * Simula envio de mensagens para WhatsApp
- * Em produção, usar API como Twilio, Evolution API, ou Baileys
+ * Envia mensagens para WhatsApp
+ * Suporta provider real via Twilio ou modo mock
  */
 
 import { logger } from '../utils/logger';
+import twilio from 'twilio';
 
 export interface WhatsAppMessage {
   phoneNumber: string;
@@ -13,10 +14,18 @@ export interface WhatsAppMessage {
 }
 
 export class WhatsAppAdapter {
-  private apiKey: string;
+  private provider: 'mock' | 'twilio';
+  private accountSid: string | undefined;
+  private authToken: string | undefined;
+  private fromNumber: string | undefined;
+  private defaultCountry: string;
 
   constructor() {
-    this.apiKey = process.env.WHATSAPP_API_KEY || 'mock-api-key';
+    this.provider = (process.env.WHATSAPP_PROVIDER || 'mock').toLowerCase() === 'twilio' ? 'twilio' : 'mock';
+    this.accountSid = process.env.TWILIO_ACCOUNT_SID;
+    this.authToken = process.env.TWILIO_AUTH_TOKEN;
+    this.fromNumber = process.env.TWILIO_WHATSAPP_FROM;
+    this.defaultCountry = process.env.WHATSAPP_DEFAULT_COUNTRY || '55';
   }
 
   /**
@@ -29,7 +38,28 @@ export class WhatsAppAdapter {
         messageLength: text.length,
       });
 
-      // MOCK: Simula delay de rede
+      if (this.provider === 'twilio') {
+        if (!this.accountSid || !this.authToken || !this.fromNumber) {
+          throw new Error('Credenciais Twilio ausentes');
+        }
+
+        const client = twilio(this.accountSid, this.authToken);
+        const to = this.formatToE164(phoneNumber);
+
+        await client.messages.create({
+          from: this.normalizeTwilioFrom(this.fromNumber),
+          to: `whatsapp:${to}`,
+          body: text,
+        });
+
+        logger.success('✅ Alerta enviado via WhatsApp (Twilio)', {
+          phoneNumber: this.maskPhoneNumber(phoneNumber),
+        });
+
+        return true;
+      }
+
+      // MOCK
       await this.mockDelay(500);
 
       // MOCK: Simula sucesso (em produção, chamar API real)
@@ -84,6 +114,23 @@ ${product.niche ? `🎯 Nicho: ${product.niche}` : ''}
 
   private maskPhoneNumber(phone: string): string {
     return phone.replace(/(\d{2})\d+(\d{4})/, '$1****$2');
+  }
+
+  private formatToE164(phone: string): string {
+    const digits = phone.replace(/\D+/g, '');
+    if (digits.startsWith('0')) {
+      return `+${digits.replace(/^0+/, '')}`;
+    }
+    if (phone.trim().startsWith('+')) {
+      return `+${digits}`;
+    }
+    return `+${this.defaultCountry}${digits}`;
+  }
+
+  private normalizeTwilioFrom(from: string): string {
+    if (from.startsWith('whatsapp:')) return from;
+    if (from.trim().startsWith('+')) return `whatsapp:${from}`;
+    return `whatsapp:+${from.replace(/\D+/g, '')}`;
   }
 
   private mockDelay(ms: number): Promise<void> {
