@@ -42,6 +42,11 @@ interface Niche {
   description: string | null;
 }
 
+interface TelegramConfig {
+  enabled: boolean;
+  telegramChatId: string | null;
+}
+
 class ApiService {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
@@ -176,10 +181,30 @@ class ApiService {
     });
   }
 
+  async getTelegramConfig(): Promise<TelegramConfig> {
+    const response = await this.request<{ success: boolean; data: TelegramConfig }>('/me/telegram');
+    return response.data;
+  }
+
+  async connectTelegram(identifier: string): Promise<TelegramConfig> {
+    const response = await this.request<{ success: boolean; data: TelegramConfig }>('/me/telegram/connect', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    });
+    return response.data;
+  }
+
+  async disableTelegram(): Promise<TelegramConfig> {
+    const response = await this.request<{ success: boolean; data: TelegramConfig }>('/me/telegram/disable', {
+      method: 'POST',
+    });
+    return response.data;
+  }
+
   isAuthenticated(): boolean {
     return !!this.accessToken;
   }
 }
 
 export const api = new ApiService();
-export type { LoginResponse, RegisterData, Subscription, Niche };
+export type { LoginResponse, RegisterData, Subscription, Niche, TelegramConfig };

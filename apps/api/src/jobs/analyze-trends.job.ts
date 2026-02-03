@@ -113,7 +113,7 @@ export class AnalyzeTrendsJob {
   private async analyzeProduct(product: any): Promise<void> {
     logger.info('🔍 Analisando produto', {
       id: product.id,
-      name: product.name,
+      name: product.title,
       currentScore: product.viralScore,
     });
 
@@ -164,7 +164,7 @@ export class AnalyzeTrendsJob {
     if (analysis.status === 'VIRAL' && product.status !== 'VIRAL') {
       logger.success('🔥 PRODUTO VIRALIZADO!', {
         productId: product.id,
-        name: product.name,
+        name: product.title,
         viralScore: analysis.viralScore,
       });
     }

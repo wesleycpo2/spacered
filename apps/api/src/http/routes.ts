@@ -11,6 +11,7 @@ import { subscriptionRoutes } from './routes/subscription.routes';
 import { nicheRoutes } from './routes/niche.routes';
 import { tiktokRoutes } from './routes/tiktok.routes';
 import { adminRoutes } from './routes/admin.routes';
+import { telegramRoutes } from './routes/telegram.routes';
 
 export async function routes(fastify: FastifyInstance) {
   // ========================================
@@ -41,6 +42,7 @@ export async function routes(fastify: FastifyInstance) {
   await nicheRoutes(fastify);
   await tiktokRoutes(fastify);
   await adminRoutes(fastify);
+  await telegramRoutes(fastify);
 
   // ========================================
   // ROTAS PRIVADAS - QUALQUER ASSINANTE

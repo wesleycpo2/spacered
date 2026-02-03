@@ -16,12 +16,12 @@ import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
 
 interface ProductData {
   id: string;
-  name: string;
+  title: string;
   nicheId: string;
   viralScore: number;
   views: bigint;
   sales: number;
-  productUrl: string;
+  tiktokUrl: string;
 }
 
 export class AlertService {
@@ -40,7 +40,7 @@ export class AlertService {
   async createAlertsForProduct(product: ProductData): Promise<string[]> {
     logger.info('🔔 Criando alertas para produto viral', {
       productId: product.id,
-      productName: product.name,
+      productName: product.title,
       viralScore: product.viralScore,
     });
 
@@ -90,7 +90,6 @@ export class AlertService {
     // Busca todos usuários com subscription ACTIVE
     const users = await prisma.user.findMany({
       where: {
-        isActive: true,
         subscription: {
           status: 'ACTIVE',
         },
@@ -107,11 +106,6 @@ export class AlertService {
       if (!user.subscription || !user.notificationConfig) return false;
 
       const { subscription, notificationConfig } = user;
-
-      // Verifica score mínimo
-      if (product.viralScore < notificationConfig.minViralScore) {
-        return false;
-      }
 
       // Verifica horário silencioso
       if (this.isQuietHours(notificationConfig)) {
@@ -160,9 +154,6 @@ export class AlertService {
         channel,
         status: 'PENDING',
         message,
-        productViralScore: product.viralScore,
-        productViews: product.views,
-        productSales: product.sales,
       },
     });
 
@@ -213,11 +204,11 @@ export class AlertService {
     channel: NotificationChannel
   ): string {
     const productData = {
-      name: product.name,
+      name: product.title,
       viralScore: product.viralScore,
       views: product.views,
       sales: product.sales,
-      productUrl: product.productUrl,
+      productUrl: product.tiktokUrl,
       niche: nicheName,
     };
 

@@ -17,6 +17,11 @@ export function DashboardPage() {
   const [userNiches, setUserNiches] = useState<Niche[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [telegramIdentifier, setTelegramIdentifier] = useState('');
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [telegramMessage, setTelegramMessage] = useState('');
+
+  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
   useEffect(() => {
     loadData();
@@ -30,6 +35,13 @@ export function DashboardPage() {
         api.getNiches(),
         api.getUserNiches(),
       ]);
+      try {
+        const telegramConfig = await api.getTelegramConfig();
+        setTelegramEnabled(Boolean(telegramConfig.enabled));
+        setTelegramIdentifier(telegramConfig.telegramChatId || '');
+      } catch {
+        // ignore telegram config errors
+      }
       setAllNiches(niches);
       setUserNiches(myNiches);
     } catch (err) {
@@ -63,6 +75,29 @@ export function DashboardPage() {
   function handleLogout() {
     logout();
     navigate('/');
+  }
+
+  async function handleTelegramPlay() {
+    setTelegramMessage('Conectando Telegram...');
+    try {
+      const data = await api.connectTelegram(telegramIdentifier);
+      setTelegramEnabled(Boolean(data.enabled));
+      setTelegramIdentifier(data.telegramChatId || telegramIdentifier);
+      setTelegramMessage('Telegram conectado.');
+    } catch (err) {
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao conectar Telegram.');
+    }
+  }
+
+  async function handleTelegramStop() {
+    setTelegramMessage('Desativando Telegram...');
+    try {
+      const data = await api.disableTelegram();
+      setTelegramEnabled(Boolean(data.enabled));
+      setTelegramMessage('Telegram desativado.');
+    } catch (err) {
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao desativar Telegram.');
+    }
   }
 
   if (isLoading) {
@@ -149,6 +184,58 @@ export function DashboardPage() {
         ) : (
           <p>Carregando dados da assinatura...</p>
         )}
+      </section>
+
+      {/* TELEGRAM */}
+      <section style={{ marginBottom: 40, padding: 20, border: '1px solid #ddd' }}>
+        <h2>Telegram</h2>
+        <p style={{ marginTop: 0, color: '#475569' }}>
+          Envie <strong>/start</strong> para o bot antes de conectar.
+        </p>
+        {telegramBotUsername && (
+          <p style={{ marginTop: 0 }}>
+            Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            placeholder="Seu @username ou chat_id"
+            value={telegramIdentifier}
+            onChange={(e) => setTelegramIdentifier(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}
+          />
+          <button
+            onClick={handleTelegramPlay}
+            disabled={!telegramIdentifier || telegramEnabled}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid #cbd5e1',
+              background: telegramEnabled ? '#e2e8f0' : '#22c55e',
+              color: telegramEnabled ? '#64748b' : '#0b1220',
+              cursor: telegramEnabled ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            ▶ Play
+          </button>
+          <button
+            onClick={handleTelegramStop}
+            disabled={!telegramEnabled}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid #cbd5e1',
+              background: !telegramEnabled ? '#e2e8f0' : '#ef4444',
+              color: !telegramEnabled ? '#64748b' : '#fff',
+              cursor: !telegramEnabled ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            ⏹ Stop
+          </button>
+          {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
+        </div>
       </section>
 
       {/* SELEÇÃO DE NICHOS */}

@@ -56,12 +56,12 @@ export class AlertProcessorJob {
       for (const product of viralProducts) {
         const alertIds = await this.alertService.createAlertsForProduct({
           id: product.id,
-          name: product.name,
+          title: product.title,
           nicheId: product.nicheId,
           viralScore: product.viralScore,
           views: product.views,
           sales: product.sales,
-          productUrl: product.productUrl,
+          tiktokUrl: product.tiktokUrl,
         });
 
         allAlertIds.push(...alertIds);

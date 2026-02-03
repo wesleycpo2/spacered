@@ -85,6 +85,36 @@ export class TelegramAdapter {
     }
   }
 
+  async resolveChatId(identifier: string): Promise<string | null> {
+    const trimmed = identifier.trim();
+    if (!trimmed) return null;
+
+    if (/^-?\d+$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const username = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+    const updates = await this.getUpdates();
+
+    for (const update of updates) {
+      const message = update.message || update.channel_post || update.edited_message;
+      if (!message) continue;
+
+      const fromUsername = message.from?.username;
+      const chatUsername = message.chat?.username;
+
+      if (fromUsername && fromUsername.toLowerCase() === username.toLowerCase()) {
+        return String(message.chat?.id);
+      }
+
+      if (chatUsername && chatUsername.toLowerCase() === username.toLowerCase()) {
+        return String(message.chat?.id);
+      }
+    }
+
+    return null;
+  }
+
   /**
    * Formata mensagem de alerta viral
    */
@@ -143,6 +173,22 @@ ${product.niche ? `🎯 Nicho: ${product.niche}` : ''}
       const errorText = await response.text();
       throw new Error(`Telegram API error: ${response.status} ${errorText}`);
     }
+  }
+
+  private async getUpdates(): Promise<any[]> {
+    if (!this.botToken || this.botToken === 'mock-bot-token') {
+      throw new Error('TELEGRAM_BOT_TOKEN ausente');
+    }
+
+    const url = `https://api.telegram.org/bot${this.botToken}/getUpdates?limit=100`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Telegram API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    return Array.isArray(data.result) ? data.result : [];
   }
 
   private mockDelay(ms: number): Promise<void> {
