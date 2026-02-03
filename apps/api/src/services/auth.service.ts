@@ -42,18 +42,13 @@ export class AuthService {
           create: {
             planType: 'BASE',
             status: 'PENDING', // Aguardando confirmação de pagamento
-            maxAlertsPerDay: 10,
-            maxNiches: 3,
-            canAccessPremium: false,
           },
         },
         // Cria configuração de notificação padrão
         notificationConfig: {
           create: {
-            emailEnabled: true,
-            minViralScore: 70.0,
-            alertFrequency: 4,
-            timezone: 'America/Sao_Paulo',
+            enabledChannels: ['EMAIL'],
+            maxAlertsPerDay: 50,
           },
         },
       },
@@ -100,10 +95,6 @@ export class AuthService {
       throw new Error('Credenciais inválidas');
     }
 
-    // Verifica se o usuário está ativo
-    if (!user.isActive) {
-      throw new Error('Usuário desativado');
-    }
 
     // Retorna dados (sem a senha)
     return {
@@ -152,7 +143,7 @@ export class AuthService {
         include: { subscription: true },
       });
 
-      if (!user || !user.isActive) {
+      if (!user) {
         throw new Error('Usuário inválido');
       }
 

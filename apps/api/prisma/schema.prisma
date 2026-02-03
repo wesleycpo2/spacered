@@ -57,6 +57,13 @@ enum PaymentGateway {
   ASAAS   // Asaas (Brasil)
 }
 
+// Tipo de sinal coletado do TikTok
+enum TrendSignalType {
+  HASHTAG
+  SOUND
+  VIDEO
+}
+
 // ========================================
 // MODELOS
 // ========================================
@@ -245,4 +252,19 @@ model Trend {
 
   @@index([productId, createdAt])
   @@map("trends")
+}
+
+model TrendSignal {
+  id            String          @id @default(uuid())
+  type          TrendSignalType
+  value         String
+  category      String?
+  region        String?
+  growthPercent Float
+  source        String?
+  collectedAt   DateTime        @default(now())
+
+  @@index([type])
+  @@index([collectedAt])
+  @@map("trend_signals")
 }

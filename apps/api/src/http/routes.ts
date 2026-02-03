@@ -9,6 +9,8 @@ import { register, login, refreshToken } from './controllers/auth.controller';
 import { requireAuth, requirePlan } from '../middlewares/auth.middleware';
 import { subscriptionRoutes } from './routes/subscription.routes';
 import { nicheRoutes } from './routes/niche.routes';
+import { tiktokRoutes } from './routes/tiktok.routes';
+import { adminRoutes } from './routes/admin.routes';
 
 export async function routes(fastify: FastifyInstance) {
   // ========================================
@@ -37,6 +39,8 @@ export async function routes(fastify: FastifyInstance) {
 
   await subscriptionRoutes(fastify);
   await nicheRoutes(fastify);
+  await tiktokRoutes(fastify);
+  await adminRoutes(fastify);
 
   // ========================================
   // ROTAS PRIVADAS - QUALQUER ASSINANTE
