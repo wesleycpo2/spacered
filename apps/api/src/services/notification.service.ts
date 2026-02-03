@@ -145,7 +145,7 @@ export class NotificationService {
       where: { id: alertId },
       data: {
         status: 'FAILED',
-        failedReason: reason,
+        errorMessage: reason,
         retryCount: { increment: 1 },
       },
     });

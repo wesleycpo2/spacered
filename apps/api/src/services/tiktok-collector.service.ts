@@ -29,6 +29,10 @@ interface ExternalPayload {
   data?: HashtagTrendItem[];
 }
 
+interface ExternalSignalPayload {
+  data?: TrendSignalItem[];
+}
+
 export class TikTokCollectorService {
   async fetchTrends(limit = 20): Promise<HashtagTrendItem[]> {
     const sourceUrl = process.env.TIKTOK_TRENDS_URL;
@@ -76,12 +80,14 @@ export class TikTokCollectorService {
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const payload = (await response.json()) as TrendSignalItem[] | ExternalPayload;
+        const payload = (await response.json()) as TrendSignalItem[] | ExternalSignalPayload | ExternalPayload;
         const list = Array.isArray(payload)
           ? payload
           : payload.data || [];
 
-        return list.slice(0, limit);
+        const normalized = list.map((item) => this.toSignal(item));
+
+        return normalized.slice(0, limit);
       } catch (error) {
         logger.warn('⚠️ Falha ao buscar signals externos, usando mock', { error });
       }
@@ -194,6 +200,21 @@ export class TikTokCollectorService {
     }
 
     return signals.slice(0, limit);
+  }
+
+  private toSignal(item: HashtagTrendItem | TrendSignalItem): TrendSignalItem {
+    if ('type' in item && 'value' in item && 'growthPercent' in item) {
+      return item;
+    }
+
+    return {
+      type: 'HASHTAG',
+      value: `#${item.hashtag}`,
+      category: 'Geral',
+      region: 'BR',
+      growthPercent: 0,
+      source: 'external',
+    };
   }
 
   private randomRange(min: number, max: number): number {
