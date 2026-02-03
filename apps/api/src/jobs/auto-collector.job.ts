@@ -40,7 +40,7 @@ export async function runAutoCollectorOnce() {
   await runHashtagCollector(hashtagLimit);
   await runSignalCollector(signalLimit);
 
-  const enableAi = (process.env.AUTO_AI_ENABLED || 'true').toLowerCase() === 'true';
+  const enableAi = (process.env.AUTO_AI_ENABLED || 'false').toLowerCase() === 'true';
   if (enableAi) {
     const signals = await prisma.trendSignal.findMany({
       orderBy: { collectedAt: 'desc' },
