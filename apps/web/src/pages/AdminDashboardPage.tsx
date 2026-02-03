@@ -33,6 +33,7 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState('67993133993');
   const [message, setMessage] = useState('');
+  const [aiSummary, setAiSummary] = useState('');
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -85,40 +86,76 @@ export function AdminDashboardPage() {
     setMessage(data.success ? 'Mensagem enviada (mock).' : 'Falha no envio.');
   }
 
+  async function runAiEvaluation() {
+    setMessage('Analisando com IA...');
+    const res = await fetch(`${apiUrl}/admin/ai-evaluate`, {
+      method: 'POST',
+      headers,
+    });
+    const data = await res.json();
+    if (data.success) {
+      setAiSummary(data.summary || 'Sem resposta.');
+      setMessage('IA concluída.');
+    } else {
+      setAiSummary('');
+      setMessage(data.message || 'Falha na IA.');
+    }
+  }
+
   useEffect(() => {
     if (apiUrl) {
       loadOverview();
     }
   }, [apiUrl]);
 
+  const topSignals = signals.slice(0, 6);
+  const topProducts = products.slice(0, 6);
+
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24, color: '#0f172a', background: '#f8fafc', minHeight: '100vh' }}>
+    <div
+      style={{
+        fontFamily: 'system-ui, sans-serif',
+        padding: 24,
+        color: '#0f172a',
+        background: 'linear-gradient(180deg, #0b1220 0%, #0f172a 20%, #f8fafc 70%)',
+        minHeight: '100vh',
+      }}
+    >
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <header style={{ marginBottom: 20 }}>
-          <h1 style={{ marginBottom: 6 }}>Dashboard Admin</h1>
-          <p style={{ color: '#475569', margin: 0 }}>
-            Monitoramento de tendências, sinais e envio de testes.
+        <header style={{ marginBottom: 24, color: 'white' }}>
+          <p style={{ letterSpacing: 2, textTransform: 'uppercase', fontSize: 12, color: '#94a3b8' }}>
+            TikTok Trend Alert
+          </p>
+          <h1 style={{ marginBottom: 8, fontSize: 28 }}>Dashboard Admin</h1>
+          <p style={{ color: '#cbd5f5', margin: 0 }}>
+            Monitoramento em tempo real de tendências, sinais e testes.
           </p>
         </header>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 18 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-            <div style={{ color: '#64748b', fontSize: 12 }}>Produtos monitorados</div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{products.length}</div>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
+          <div style={{ background: '#0f172a', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Produtos monitorados</div>
+            <div style={{ fontSize: 26, fontWeight: 700 }}>{products.length}</div>
           </div>
-          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-            <div style={{ color: '#64748b', fontSize: 12 }}>Sinais recentes</div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{signals.length}</div>
+          <div style={{ background: '#111827', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1f2937' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Sinais recentes</div>
+            <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
           </div>
-          <div style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-            <div style={{ color: '#64748b', fontSize: 12 }}>Status</div>
+          <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Status</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: loading ? '#f59e0b' : '#22c55e' }}>
               {loading ? 'Carregando...' : 'Ativo'}
             </div>
           </div>
+          <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>IA</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: aiSummary ? '#38bdf8' : '#94a3b8' }}>
+              {aiSummary ? 'Resumo pronto' : 'Sem análise'}
+            </div>
+          </div>
         </section>
 
-        <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={runCollect} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>
               Coletar hashtags
@@ -128,6 +165,12 @@ export function AdminDashboardPage() {
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
             >
               Coletar sinais
+            </button>
+            <button
+              onClick={runAiEvaluation}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#eef2ff', cursor: 'pointer' }}
+            >
+              Avaliar com IA
             </button>
             <input
               placeholder="WhatsApp (ex: 67999999999)"
@@ -143,11 +186,23 @@ export function AdminDashboardPage() {
         </section>
 
         {loading ? (
-          <p>Carregando...</p>
+          <p style={{ color: '#e2e8f0' }}>Carregando...</p>
         ) : (
           <>
-          <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+          <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
             <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
+              {topProducts.map((p) => (
+                <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Score</div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {Number(p.views).toLocaleString()} views
+                  </div>
+                </div>
+              ))}
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -173,8 +228,36 @@ export function AdminDashboardPage() {
           </tbody>
         </table>
           </section>
-          <section style={{ background: 'white', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+          {aiSummary && (
+            <section style={{ background: '#0b1220', color: 'white', borderRadius: 12, padding: 16, marginBottom: 18 }}>
+              <h2 style={{ marginTop: 0 }}>Resumo da IA</h2>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, color: '#e2e8f0' }}>{aiSummary}</pre>
+            </section>
+          )}
+          <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
             <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
+              {topSignals.map((s) => (
+                <div key={s.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{s.type}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{s.value}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{s.region || '—'}</div>
+                  <div style={{ height: 6, background: '#e2e8f0', borderRadius: 999, marginTop: 8 }}>
+                    <div
+                      style={{
+                        height: 6,
+                        width: `${Math.min(100, s.growthPercent)}%`,
+                        background: '#22c55e',
+                        borderRadius: 999,
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>
+                    +{s.growthPercent.toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
