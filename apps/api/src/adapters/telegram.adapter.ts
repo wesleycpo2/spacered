@@ -1,8 +1,8 @@
 /**
  * TELEGRAM ADAPTER (MOCK)
  * 
- * Simula envio de mensagens para Telegram
- * Em produção, usar biblioteca como node-telegram-bot-api
+ * Envia mensagens para Telegram
+ * Suporta envio real via Bot API ou modo mock
  */
 
 import { logger } from '../utils/logger';
@@ -16,10 +16,12 @@ export interface TelegramMessage {
 export class TelegramAdapter {
   private botToken: string;
   private publicChannelId: string; // Canal público para plano BASIC
+  private provider: 'mock' | 'bot-api';
 
   constructor() {
     this.botToken = process.env.TELEGRAM_BOT_TOKEN || 'mock-bot-token';
     this.publicChannelId = process.env.TELEGRAM_PUBLIC_CHANNEL || 'mock-public-channel';
+    this.provider = (process.env.TELEGRAM_PROVIDER || 'bot-api').toLowerCase() === 'mock' ? 'mock' : 'bot-api';
   }
 
   /**
@@ -32,10 +34,13 @@ export class TelegramAdapter {
         messageLength: text.length,
       });
 
-      // MOCK: Simula delay de rede
-      await this.mockDelay(300);
+      if (this.provider === 'bot-api') {
+        await this.sendTelegramMessage(this.publicChannelId, text, 'HTML');
+      } else {
+        // MOCK
+        await this.mockDelay(300);
+      }
 
-      // MOCK: Simula sucesso (em produção, chamar API real)
       logger.success('✅ Alerta enviado para canal público', {
         channel: this.publicChannelId,
       });
@@ -59,10 +64,13 @@ export class TelegramAdapter {
         messageLength: text.length,
       });
 
-      // MOCK: Simula delay de rede
-      await this.mockDelay(300);
+      if (this.provider === 'bot-api') {
+        await this.sendTelegramMessage(chatId, text, 'HTML');
+      } else {
+        // MOCK
+        await this.mockDelay(300);
+      }
 
-      // MOCK: Simula sucesso (em produção, chamar API real)
       logger.success('✅ Alerta privado enviado via Telegram', {
         chatId,
       });
@@ -110,6 +118,31 @@ ${product.niche ? `🎯 Nicho: ${product.niche}` : ''}
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
     return n.toString();
+  }
+
+  private async sendTelegramMessage(chatId: string, text: string, parseMode: 'HTML' | 'Markdown' = 'HTML'): Promise<void> {
+    if (!this.botToken || this.botToken === 'mock-bot-token') {
+      throw new Error('TELEGRAM_BOT_TOKEN ausente');
+    }
+
+    const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
+    const payload = {
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+      disable_web_page_preview: false,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Telegram API error: ${response.status} ${errorText}`);
+    }
   }
 
   private mockDelay(ms: number): Promise<void> {
