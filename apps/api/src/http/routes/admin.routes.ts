@@ -11,6 +11,7 @@ import { runSignalCollector } from '../../jobs/collect-signals.job';
 import { isAutoCollectorRunning, startAutoCollector, stopAutoCollector } from '../../jobs/auto-collector.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
 import { AiAnalyzerService } from '../../services/ai-analyzer.service';
+import { TelegramAdapter } from '../../adapters/telegram.adapter';
 
 function requireAdmin(requestToken?: string): boolean {
   const required = process.env.ADMIN_TOKEN;
@@ -150,6 +151,118 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const sent = await adapter.sendMessage(phoneNumber, message);
 
     return reply.send({ success: sent });
+  });
+
+  // POST /admin/telegram/connect
+  fastify.post('/admin/telegram/connect', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const body = request.body as { email?: string; identifier?: string };
+    const email = body?.email?.trim();
+    const identifier = body?.identifier?.trim();
+
+    if (!email || !identifier) {
+      return reply.status(400).send({ error: 'Email e identifier são obrigatórios' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return reply.status(404).send({ error: 'Usuário não encontrado' });
+    }
+
+    const adapter = new TelegramAdapter();
+    const chatId = await adapter.resolveChatId(identifier);
+    if (!chatId) {
+      return reply.status(400).send({ error: 'Não foi possível localizar o chat. Envie /start para o bot e tente novamente.' });
+    }
+
+    const existing = await prisma.notificationConfig.findUnique({
+      where: { userId: user.id },
+    });
+
+    const enabledChannels = new Set(existing?.enabledChannels || []);
+    enabledChannels.add('TELEGRAM');
+
+    const data = {
+      telegramChatId: chatId,
+      enabledChannels: Array.from(enabledChannels),
+    };
+
+    const updated = existing
+      ? await prisma.notificationConfig.update({
+          where: { userId: user.id },
+          data,
+        })
+      : await prisma.notificationConfig.create({
+          data: {
+            userId: user.id,
+            ...data,
+            maxAlertsPerDay: 50,
+          },
+        });
+
+    return reply.send({
+      success: true,
+      data: {
+        email: user.email,
+        enabled: updated.enabledChannels.includes('TELEGRAM'),
+        telegramChatId: updated.telegramChatId,
+      },
+    });
+  });
+
+  // POST /admin/telegram/disable
+  fastify.post('/admin/telegram/disable', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const body = request.body as { email?: string };
+    const email = body?.email?.trim();
+    if (!email) {
+      return reply.status(400).send({ error: 'Email é obrigatório' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return reply.status(404).send({ error: 'Usuário não encontrado' });
+    }
+
+    const existing = await prisma.notificationConfig.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!existing) {
+      return reply.send({
+        success: true,
+        data: { email: user.email, enabled: false, telegramChatId: null },
+      });
+    }
+
+    const enabledChannels = existing.enabledChannels.filter(
+      (channel) => channel !== 'TELEGRAM'
+    );
+
+    const updated = await prisma.notificationConfig.update({
+      where: { userId: user.id },
+      data: {
+        telegramChatId: null,
+        enabledChannels,
+      },
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        email: user.email,
+        enabled: updated.enabledChannels.includes('TELEGRAM'),
+        telegramChatId: updated.telegramChatId,
+      },
+    });
   });
 
   // POST /admin/ai-evaluate

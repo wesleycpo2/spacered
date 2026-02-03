@@ -42,6 +42,12 @@ export function AdminDashboardPage() {
   const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [telegramEmail, setTelegramEmail] = useState('');
+  const [telegramIdentifier, setTelegramIdentifier] = useState('');
+  const [telegramMessage, setTelegramMessage] = useState('');
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+
+  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -83,6 +89,54 @@ export function AdminDashboardPage() {
       await loadOverview();
     } catch (err) {
       setActionMessage('Falha ao atualizar coletor automático.');
+    }
+  }
+
+  async function connectTelegram() {
+    if (!telegramEmail || !telegramIdentifier) {
+      setTelegramMessage('Informe email e @username/chat_id.');
+      return;
+    }
+
+    setTelegramMessage('Conectando Telegram...');
+    try {
+      const res = await fetch(`${apiUrl}/admin/telegram/connect`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: telegramEmail, identifier: telegramIdentifier }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao conectar Telegram.');
+      }
+      setTelegramEnabled(Boolean(data.data?.enabled));
+      setTelegramMessage('Telegram conectado.');
+    } catch (err) {
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao conectar Telegram.');
+    }
+  }
+
+  async function disableTelegram() {
+    if (!telegramEmail) {
+      setTelegramMessage('Informe o email do usuário.');
+      return;
+    }
+
+    setTelegramMessage('Desativando Telegram...');
+    try {
+      const res = await fetch(`${apiUrl}/admin/telegram/disable`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: telegramEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao desativar Telegram.');
+      }
+      setTelegramEnabled(Boolean(data.data?.enabled));
+      setTelegramMessage('Telegram desativado.');
+    } catch (err) {
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao desativar Telegram.');
     }
   }
 
@@ -178,6 +232,63 @@ export function AdminDashboardPage() {
             </button>
             {actionMessage && <span style={{ color: '#475569' }}>{actionMessage}</span>}
             {errorMessage && <span style={{ color: '#ef4444' }}>{errorMessage}</span>}
+          </div>
+        </section>
+
+        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+          <h2 style={{ marginTop: 0 }}>Telegram (Cliente)</h2>
+          <p style={{ marginTop: 0, color: '#475569' }}>
+            Envie <strong>/start</strong> para o bot antes de conectar.
+          </p>
+          {telegramBotUsername && (
+            <p style={{ marginTop: 0 }}>
+              Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              placeholder="Email do cliente"
+              value={telegramEmail}
+              onChange={(e) => setTelegramEmail(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
+            />
+            <input
+              placeholder="@username ou chat_id"
+              value={telegramIdentifier}
+              onChange={(e) => setTelegramIdentifier(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
+            />
+            <button
+              onClick={connectTelegram}
+              disabled={!telegramEmail || !telegramIdentifier || telegramEnabled}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: telegramEnabled ? '#e2e8f0' : '#22c55e',
+                color: telegramEnabled ? '#64748b' : '#0b1220',
+                cursor: telegramEnabled ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ▶ Play
+            </button>
+            <button
+              onClick={disableTelegram}
+              disabled={!telegramEnabled}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: !telegramEnabled ? '#e2e8f0' : '#ef4444',
+                color: !telegramEnabled ? '#64748b' : '#fff',
+                cursor: !telegramEnabled ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ⏹ Stop
+            </button>
+            {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
           </div>
         </section>
 
