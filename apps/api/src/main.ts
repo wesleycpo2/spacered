@@ -9,6 +9,7 @@
 import 'dotenv/config';
 import { buildServer } from './http/server';
 import { prisma } from './config/prisma';
+import { startAutoCollector } from './jobs/auto-collector.job';
 
 async function start() {
   try {
@@ -28,6 +29,9 @@ async function start() {
 
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📚 Health check: http://localhost:${PORT}/health`);
+
+    // Inicia coleta automática
+    await startAutoCollector();
   } catch (error) {
     console.error('❌ Erro ao iniciar o servidor:', error);
     process.exit(1);

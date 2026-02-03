@@ -41,6 +41,7 @@ export function AdminDashboardPage() {
   const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -53,6 +54,7 @@ export function AdminDashboardPage() {
 
   async function loadOverview() {
     setLoading(true);
+    setErrorMessage('');
     try {
       const res = await fetch(`${apiUrl}/admin/overview`, { headers });
       const data = await res.json();
@@ -61,6 +63,8 @@ export function AdminDashboardPage() {
       setLatestReport(data.aiReport || null);
       setAiReports(data.aiReports || []);
       setAutoCollectorRunning(Boolean(data.autoCollectorRunning));
+    } catch (err) {
+      setErrorMessage('Erro ao carregar overview.');
     } finally {
       setLoading(false);
     }
@@ -173,6 +177,7 @@ export function AdminDashboardPage() {
               ⏹ Stop
             </button>
             {actionMessage && <span style={{ color: '#475569' }}>{actionMessage}</span>}
+            {errorMessage && <span style={{ color: '#ef4444' }}>{errorMessage}</span>}
           </div>
         </section>
 

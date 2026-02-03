@@ -12,6 +12,22 @@ import { AiAnalyzerService } from '../services/ai-analyzer.service';
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
+const AUTO_COLLECTOR_KEY = 'auto-collector';
+
+async function getAutoCollectorState() {
+  return prisma.autoCollectorState.findUnique({
+    where: { key: AUTO_COLLECTOR_KEY },
+  });
+}
+
+async function setAutoCollectorState(running: boolean) {
+  return prisma.autoCollectorState.upsert({
+    where: { key: AUTO_COLLECTOR_KEY },
+    update: { running },
+    create: { key: AUTO_COLLECTOR_KEY, running },
+  });
+}
+
 export async function runAutoCollectorOnce() {
   const hashtagLimit = Number(process.env.AUTO_HASHTAG_LIMIT || 20);
   const signalLimit = Number(process.env.AUTO_SIGNAL_LIMIT || 30);
@@ -42,10 +58,16 @@ export async function runAutoCollectorOnce() {
   logger.success('✅ Auto-collector: ciclo concluído');
 }
 
-export function startAutoCollector() {
+export async function startAutoCollector() {
   const enabled = (process.env.AUTO_COLLECT_ENABLED || 'true').toLowerCase() === 'true';
   if (!enabled) {
     logger.warn('⚠️ Auto-collector desabilitado');
+    return;
+  }
+
+  const state = await getAutoCollectorState();
+  if (state && !state.running) {
+    logger.warn('⏸️ Auto-collector pausado por estado persistido');
     return;
   }
 
@@ -59,6 +81,8 @@ export function startAutoCollector() {
 
   logger.info('⏱️ Auto-collector ativo', { minutes });
 
+  await setAutoCollectorState(true);
+
   // Rodar uma vez ao iniciar
   runAutoCollectorOnce().catch((error) => logger.error('❌ Auto-collector error', { error }));
 
@@ -67,12 +91,14 @@ export function startAutoCollector() {
   }, intervalMs);
 }
 
-export function stopAutoCollector() {
+export async function stopAutoCollector() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
     logger.warn('⏸️ Auto-collector pausado');
   }
+
+  await setAutoCollectorState(false);
 }
 
 export function isAutoCollectorRunning() {

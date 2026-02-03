@@ -268,3 +268,21 @@ model TrendSignal {
   @@index([collectedAt])
   @@map("trend_signals")
 }
+
+model AiReport {
+  id        String   @id @default(uuid())
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("ai_reports")
+}
+
+model AutoCollectorState {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  running   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@map("auto_collector_state")
+}

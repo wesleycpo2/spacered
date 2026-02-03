@@ -68,7 +68,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
-    startAutoCollector();
+    await startAutoCollector();
     return reply.send({ success: true, running: isAutoCollectorRunning() });
   });
 
@@ -79,7 +79,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
-    stopAutoCollector();
+    await stopAutoCollector();
     return reply.send({ success: true, running: isAutoCollectorRunning() });
   });
 
