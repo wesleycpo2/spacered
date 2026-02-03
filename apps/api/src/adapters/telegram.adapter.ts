@@ -125,19 +125,34 @@ export class TelegramAdapter {
     sales: number;
     productUrl: string;
     niche?: string;
+    thumbnail?: string | null;
+    growth48h?: number;
+    saturationLabel?: 'Baixa' | 'Média' | 'Alta';
+    engagementLabel?: 'Alto' | 'Médio' | 'Baixo';
+    probability?: number;
   }): string {
+    const growth = typeof product.growth48h === 'number' ? `${product.growth48h}% (48h)` : 'n/d';
+    const saturation = product.saturationLabel || 'n/d';
+    const engagement = product.engagementLabel || 'n/d';
+    const probability = typeof product.probability === 'number' ? `${product.probability}%` : 'n/d';
+
     return `
-🔥 <b>PRODUTO VIRAL DETECTADO!</b>
+🚨🔥📈 <b>PRODUTO EM ALTA</b>
 
-📦 <b>${product.name}</b>
-${product.niche ? `🎯 Nicho: ${product.niche}` : ''}
+<b>Produto:</b> ${product.name}
+${product.niche ? `<b>Nicho:</b> ${product.niche}` : ''}
 
-📊 <b>Métricas:</b>
-• Score Viral: ${product.viralScore.toFixed(1)}/100
-• Views: ${this.formatNumber(product.views)}
-• Vendas Estimadas: ${product.sales}
+<b>Crescimento:</b> ${growth}
+<b>Saturação:</b> ${saturation}
+<b>Engajamento:</b> ${engagement}
+<b>Probabilidade de alta na semana:</b> ${probability}
 
-🔗 <a href="${product.productUrl}">Ver Produto</a>
+<b>Score de tendência:</b> ${product.viralScore.toFixed(1)}/100
+<b>Views:</b> ${this.formatNumber(product.views)}
+<b>Vendas estimadas:</b> ${product.sales}
+
+🔗 <a href="${product.productUrl}">Ver produto</a>
+${product.thumbnail ? `🖼️ <a href="${product.thumbnail}">Print do vídeo</a>` : ''}
 
 ⚡ Alerta gerado por TikTok Trend Alert
     `.trim();

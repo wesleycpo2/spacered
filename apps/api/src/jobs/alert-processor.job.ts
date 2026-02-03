@@ -62,6 +62,7 @@ export class AlertProcessorJob {
           views: product.views,
           sales: product.sales,
           tiktokUrl: product.tiktokUrl,
+          thumbnail: product.thumbnail,
         });
 
         allAlertIds.push(...alertIds);

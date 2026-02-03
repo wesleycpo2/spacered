@@ -87,19 +87,34 @@ export class WhatsAppAdapter {
     sales: number;
     productUrl: string;
     niche?: string;
+    thumbnail?: string | null;
+    growth48h?: number;
+    saturationLabel?: 'Baixa' | 'Média' | 'Alta';
+    engagementLabel?: 'Alto' | 'Médio' | 'Baixo';
+    probability?: number;
   }): string {
+    const growth = typeof product.growth48h === 'number' ? `${product.growth48h}% (48h)` : 'n/d';
+    const saturation = product.saturationLabel || 'n/d';
+    const engagement = product.engagementLabel || 'n/d';
+    const probability = typeof product.probability === 'number' ? `${product.probability}%` : 'n/d';
+
     return `
-🔥 *PRODUTO VIRAL DETECTADO!*
+🚨🔥📈 *PRODUTO EM ALTA*
 
-📦 *${product.name}*
-${product.niche ? `🎯 Nicho: ${product.niche}` : ''}
+*Produto:* ${product.name}
+${product.niche ? `*Nicho:* ${product.niche}` : ''}
 
-📊 *Métricas:*
-• Score Viral: ${product.viralScore.toFixed(1)}/100
-• Views: ${this.formatNumber(product.views)}
-• Vendas Estimadas: ${product.sales}
+*Crescimento:* ${growth}
+*Saturação:* ${saturation}
+*Engajamento:* ${engagement}
+*Probabilidade de alta na semana:* ${probability}
+
+*Score de tendência:* ${product.viralScore.toFixed(1)}/100
+*Views:* ${this.formatNumber(product.views)}
+*Vendas estimadas:* ${product.sales}
 
 🔗 ${product.productUrl}
+${product.thumbnail ? `🖼️ ${product.thumbnail}` : ''}
 
 ⚡ Alerta gerado por TikTok Trend Alert
     `.trim();
