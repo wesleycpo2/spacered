@@ -77,6 +77,11 @@ export function AdminDashboardPage() {
   }
 
   async function toggleAutoCollector(action: 'start' | 'stop') {
+    if (action === 'start' && !telegramEnabled) {
+      setActionMessage('Conecte o Telegram antes de iniciar.');
+      return;
+    }
+
     setActionMessage(action === 'start' ? 'Iniciando coleta automática...' : 'Pausando coleta automática...');
     try {
       const res = await fetch(`${apiUrl}/admin/auto-collector/${action}`, {
@@ -84,6 +89,9 @@ export function AdminDashboardPage() {
         headers,
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao atualizar coletor automático.');
+      }
       setAutoCollectorRunning(Boolean(data.running));
       setActionMessage(data.running ? 'Coleta automática ativa.' : 'Coleta automática pausada.');
       await loadOverview();
@@ -237,9 +245,11 @@ export function AdminDashboardPage() {
 
         <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>Telegram (Cliente)</h2>
-          <p style={{ marginTop: 0, color: '#475569' }}>
-            Envie <strong>/start</strong> para o bot antes de conectar.
-          </p>
+          <ol style={{ marginTop: 0, color: '#475569', paddingLeft: 18 }}>
+            <li>O cliente precisa enviar <strong>/start</strong> para o bot.</li>
+            <li>Preencha o email do cliente e o @username.</li>
+            <li>Clique em <strong>Verificar</strong>. Se validar, o Play é liberado.</li>
+          </ol>
           {telegramBotUsername && (
             <p style={{ marginTop: 0 }}>
               Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
@@ -260,18 +270,18 @@ export function AdminDashboardPage() {
             />
             <button
               onClick={connectTelegram}
-              disabled={!telegramEmail || !telegramIdentifier || telegramEnabled}
+              disabled={!telegramEmail || !telegramIdentifier}
               style={{
                 padding: '8px 16px',
                 borderRadius: 999,
                 border: '1px solid #cbd5e1',
-                background: telegramEnabled ? '#e2e8f0' : '#22c55e',
-                color: telegramEnabled ? '#64748b' : '#0b1220',
-                cursor: telegramEnabled ? 'not-allowed' : 'pointer',
+                background: '#22c55e',
+                color: '#0b1220',
+                cursor: 'pointer',
                 fontWeight: 600,
               }}
             >
-              ▶ Play
+              ✅ Verificar
             </button>
             <button
               onClick={disableTelegram}
@@ -286,7 +296,7 @@ export function AdminDashboardPage() {
                 fontWeight: 600,
               }}
             >
-              ⏹ Stop
+              ⏹ Desativar
             </button>
             {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
           </div>
