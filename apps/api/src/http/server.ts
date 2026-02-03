@@ -37,6 +37,9 @@ export async function buildServer() {
   await fastify.register(cors, {
     origin: process.env.FRONTEND_URL || true,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+    optionsSuccessStatus: 204,
   });
 
   // JWT - autenticação com tokens
