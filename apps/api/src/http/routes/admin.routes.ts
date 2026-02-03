@@ -8,6 +8,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
+import { runVideoCollector } from '../../jobs/collect-videos.job';
 import { isAutoCollectorRunning, startAutoCollector, stopAutoCollector } from '../../jobs/auto-collector.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
 import { AiAnalyzerService } from '../../services/ai-analyzer.service';
@@ -184,9 +185,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
 
     const limit = Number((request.body as { limit?: number })?.limit || 30);
-    const result = await runSignalCollector(limit);
+    const [videoResult, signalResult] = await Promise.all([
+      runVideoCollector(limit),
+      runSignalCollector(limit),
+    ]);
 
-    return reply.send({ success: true, ...result });
+    return reply.send({
+      success: true,
+      videos: videoResult.total,
+      signals: signalResult.total,
+    });
   });
 
   // POST /admin/whatsapp-test

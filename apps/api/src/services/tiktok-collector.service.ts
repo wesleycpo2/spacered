@@ -25,6 +25,28 @@ export interface TrendSignalItem {
   source?: string;
 }
 
+export interface TrendingVideoItem {
+  id: string;
+  desc: string;
+  createTime?: number;
+  video?: {
+    id?: string;
+    cover?: string;
+    playAddr?: string;
+    duration?: number;
+  };
+  author?: {
+    uniqueId?: string;
+    nickname?: string;
+  };
+  stats?: {
+    diggCount?: number;
+    shareCount?: number;
+    commentCount?: number;
+    playCount?: number;
+  };
+}
+
 interface ExternalPayload {
   data?: HashtagTrendItem[];
 }
@@ -33,7 +55,16 @@ interface ExternalSignalPayload {
   data?: TrendSignalItem[];
 }
 
+interface RapidApiTrendingPayload {
+  data?: TrendingVideoItem[];
+}
+
 export class TikTokCollectorService {
+  private rapidApiKey = process.env.RAPIDAPI_KEY;
+  private rapidApiHost = process.env.RAPIDAPI_HOST;
+  private rapidApiBaseUrl = process.env.RAPIDAPI_BASE_URL || 'https://tiktok-trend-analysis-api.p.rapidapi.com';
+  private rapidApiRegion = process.env.RAPIDAPI_REGION || 'US';
+
   async fetchTrends(limit = 20): Promise<HashtagTrendItem[]> {
     const sourceUrl = process.env.TIKTOK_TRENDS_URL;
 
@@ -62,6 +93,33 @@ export class TikTokCollectorService {
     }
 
     return this.buildMockTrends(limit);
+  }
+
+  async fetchTrendingVideos(limit = 20): Promise<TrendingVideoItem[]> {
+    if (!this.rapidApiKey || !this.rapidApiHost) {
+      return [];
+    }
+
+    const url = `${this.rapidApiBaseUrl}/api/trending?count=${limit}&region=${this.rapidApiRegion}`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'x-rapidapi-host': this.rapidApiHost,
+          'x-rapidapi-key': this.rapidApiKey,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = (await response.json()) as RapidApiTrendingPayload;
+      return payload.data || [];
+    } catch (error) {
+      logger.warn('⚠️ Falha ao buscar vídeos em alta via RapidAPI', { error });
+      return [];
+    }
   }
 
   async fetchSignals(limit = 30): Promise<TrendSignalItem[]> {
