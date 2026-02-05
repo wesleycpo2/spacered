@@ -60,10 +60,6 @@ export function AdminDashboardPage() {
   const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [telegramUserIdentifier, setTelegramUserIdentifier] = useState('');
-  const [telegramIdentifier, setTelegramIdentifier] = useState('');
-  const [telegramMessage, setTelegramMessage] = useState('');
-  const [telegramEnabled, setTelegramEnabled] = useState(false);
 
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
@@ -105,6 +101,7 @@ export function AdminDashboardPage() {
       const res = await fetch(`${apiUrl}/admin/auto-collector/${action}`, {
         method: 'POST',
         headers,
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -153,61 +150,6 @@ export function AdminDashboardPage() {
     }
   }
 
-  async function connectTelegram() {
-    if (!telegramUserIdentifier || !telegramIdentifier) {
-      setTelegramMessage('Informe telefone ou email e @username/chat_id.');
-      return;
-    }
-
-    const isEmail = telegramUserIdentifier.includes('@');
-    const body = isEmail
-      ? { email: telegramUserIdentifier, identifier: telegramIdentifier }
-      : { phone: telegramUserIdentifier, identifier: telegramIdentifier };
-
-    setTelegramMessage('Conectando Telegram...');
-    try {
-      const res = await fetch(`${apiUrl}/admin/telegram/connect`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao conectar Telegram.');
-      }
-      setTelegramEnabled(Boolean(data.data?.enabled));
-      setTelegramMessage('Telegram conectado.');
-    } catch (err) {
-      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao conectar Telegram.');
-    }
-  }
-
-  async function disableTelegram() {
-    if (!telegramUserIdentifier) {
-      setTelegramMessage('Informe o telefone ou email do usuário.');
-      return;
-    }
-
-    const isEmail = telegramUserIdentifier.includes('@');
-    const body = isEmail ? { email: telegramUserIdentifier } : { phone: telegramUserIdentifier };
-
-    setTelegramMessage('Desativando Telegram...');
-    try {
-      const res = await fetch(`${apiUrl}/admin/telegram/disable`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao desativar Telegram.');
-      }
-      setTelegramEnabled(Boolean(data.data?.enabled));
-      setTelegramMessage('Telegram desativado.');
-    } catch (err) {
-      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao desativar Telegram.');
-    }
-  }
 
   useEffect(() => {
     if (apiUrl) {
@@ -321,60 +263,14 @@ export function AdminDashboardPage() {
         <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>Telegram (Broadcast)</h2>
           <ol style={{ marginTop: 0, color: '#475569', paddingLeft: 18 }}>
-            <li>Adicione o bot como admin no canal público.</li>
-            <li>Os clientes apenas entram no canal para receber os alertas.</li>
-            <li>O formulário abaixo é opcional para mensagens privadas (premium).</li>
+            <li>Adicione o bot como admin no canal privado.</li>
+            <li>Os clientes entram via link único gerado no painel deles.</li>
           </ol>
           {telegramBotUsername && (
             <p style={{ marginTop: 0 }}>
               Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
             </p>
           )}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              placeholder="Telefone ou email do cliente (opcional)"
-              value={telegramUserIdentifier}
-              onChange={(e) => setTelegramUserIdentifier(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
-            />
-            <input
-              placeholder="@username ou chat_id (privado)"
-              value={telegramIdentifier}
-              onChange={(e) => setTelegramIdentifier(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
-            />
-            <button
-              onClick={connectTelegram}
-              disabled={!telegramUserIdentifier || !telegramIdentifier}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: '#22c55e',
-                color: '#0b1220',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              ✅ Conectar privado
-            </button>
-            <button
-              onClick={disableTelegram}
-              disabled={!telegramEnabled}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: !telegramEnabled ? '#e2e8f0' : '#ef4444',
-                color: !telegramEnabled ? '#64748b' : '#fff',
-                cursor: !telegramEnabled ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              ⏹ Desativar
-            </button>
-            {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
-          </div>
         </section>
 
         {loading ? (
