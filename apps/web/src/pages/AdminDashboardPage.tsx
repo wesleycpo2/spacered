@@ -57,12 +57,8 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
   const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
-  const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
-  const [actionMessage, setActionMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
-  const telegramAdminChannelLink = import.meta.env.VITE_TELEGRAM_CHANNEL_ADMIN_LINK || '';
+  const [telegramMessage, setTelegramMessage] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -75,7 +71,6 @@ export function AdminDashboardPage() {
 
   async function loadOverview() {
     setLoading(true);
-    setErrorMessage('');
     try {
       const res = await fetch(`${apiUrl}/admin/overview`, { headers });
       const data = await res.json();
@@ -83,71 +78,41 @@ export function AdminDashboardPage() {
       setSignals(data.signals || []);
       setLatestReport(data.aiReport || null);
       setAiReports(data.aiReports || []);
-      setAutoCollectorRunning(Boolean(data.autoCollectorRunning));
     } catch (err) {
-      setErrorMessage('Erro ao carregar overview.');
+      setTelegramMessage('Erro ao carregar overview.');
     } finally {
       setLoading(false);
     }
   }
 
-  async function toggleAutoCollector(action: 'start' | 'stop') {
+  async function handleJoinTelegramChannel() {
     if (!adminToken) {
-      setActionMessage('ADMIN token não configurado.');
+      setTelegramMessage('ADMIN token não configurado.');
       return;
     }
-
-    setActionMessage(action === 'start' ? 'Iniciando coleta automática...' : 'Pausando coleta automática...');
+    setInviteLoading(true);
+    setTelegramMessage('Gerando convite...');
     try {
-      const res = await fetch(`${apiUrl}/admin/auto-collector/${action}`, {
+      const res = await fetch(`${apiUrl}/admin/telegram/invite`, {
         method: 'POST',
         headers,
         body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || data.message || `Falha ao atualizar coletor automático (${res.status})`);
+        throw new Error(data.error || data.message || `Falha ao gerar convite (${res.status})`);
       }
-      setAutoCollectorRunning(Boolean(data.running));
-      setActionMessage(data.running ? 'Coleta automática ativa.' : 'Coleta automática pausada.');
-      await loadOverview();
+      const inviteLink = data.data?.inviteLink;
+      if (inviteLink) {
+        window.open(inviteLink, '_blank', 'noopener');
+        setTelegramMessage('Convite gerado. Use o link para entrar no canal.');
+      } else {
+        setTelegramMessage('Convite não disponível.');
+      }
     } catch (err) {
-      setActionMessage(err instanceof Error ? err.message : 'Falha ao atualizar coletor automático.');
-    }
-  }
-
-  async function resetDataAndCollect() {
-    if (!adminToken) {
-      setActionMessage('ADMIN token não configurado.');
-      return;
-    }
-    setActionMessage('Limpando dados antigos...');
-    try {
-      const resetRes = await fetch(`${apiUrl}/admin/reset-data`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({}),
-      });
-      if (!resetRes.ok) {
-        const payload = await resetRes.json().catch(() => ({}));
-        throw new Error(payload.error || payload.message || `Falha ao limpar dados (${resetRes.status})`);
-      }
-
-      setActionMessage('Recoletando dados reais...');
-      const collectRes = await fetch(`${apiUrl}/admin/collect-all`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ limit: 30 }),
-      });
-      if (!collectRes.ok) {
-        const payload = await collectRes.json().catch(() => ({}));
-        throw new Error(payload.error || payload.message || `Falha ao coletar dados (${collectRes.status})`);
-      }
-
-      await loadOverview();
-      setActionMessage('Dados reais carregados.');
-    } catch (err) {
-      setActionMessage(err instanceof Error ? err.message : 'Falha ao resetar e coletar.');
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao gerar convite.');
+    } finally {
+      setInviteLoading(false);
     }
   }
 
@@ -197,103 +162,44 @@ export function AdminDashboardPage() {
             <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
           </div>
           <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-            <div style={{ color: '#94a3b8', fontSize: 12 }}>Status</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: loading ? '#f59e0b' : '#22c55e' }}>
-              {loading ? 'Carregando...' : 'Ativo'}
-            </div>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Relatórios de IA</div>
+            <div style={{ fontSize: 26, fontWeight: 700 }}>{aiReports.length}</div>
           </div>
           <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-            <div style={{ color: '#94a3b8', fontSize: 12 }}>Automação</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: autoCollectorRunning ? '#38bdf8' : '#94a3b8' }}>
-              {autoCollectorRunning ? 'Rodando' : 'Pausado'}
-            </div>
+            <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#38bdf8' }}>Canal privado</div>
           </div>
         </section>
 
-        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              onClick={() => toggleAutoCollector('start')}
-              disabled={autoCollectorRunning}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: autoCollectorRunning ? '#e2e8f0' : '#22c55e',
-                color: autoCollectorRunning ? '#64748b' : '#0b1220',
-                cursor: autoCollectorRunning ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              ▶ Play
-            </button>
-            <button
-              onClick={() => toggleAutoCollector('stop')}
-              disabled={!autoCollectorRunning}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: !autoCollectorRunning ? '#e2e8f0' : '#ef4444',
-                color: !autoCollectorRunning ? '#64748b' : '#fff',
-                cursor: !autoCollectorRunning ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              ⏹ Stop
-            </button>
-            <button
-              onClick={resetDataAndCollect}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: '#0f172a',
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              ♻ Limpar & Recoletar
-            </button>
-            {actionMessage && <span style={{ color: '#475569' }}>{actionMessage}</span>}
-            {errorMessage && <span style={{ color: '#ef4444' }}>{errorMessage}</span>}
-          </div>
-        </section>
-
-        <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-          <h2 style={{ marginTop: 0 }}>Telegram (Broadcast)</h2>
-          <ol style={{ marginTop: 0, color: '#475569', paddingLeft: 18 }}>
-            <li>Adicione o bot como admin no canal privado.</li>
-            <li>Os clientes entram via link único gerado no painel deles.</li>
-          </ol>
-          {telegramBotUsername && (
-            <p style={{ marginTop: 0 }}>
-              Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
-            </p>
-          )}
-          {telegramAdminChannelLink && (
-            <button
-              onClick={() => window.open(telegramAdminChannelLink, '_blank', 'noopener')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                background: '#0f172a',
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              🔗 Entrar no canal
-            </button>
-          )}
-        </section>
 
         {loading ? (
           <p style={{ color: '#e2e8f0' }}>Carregando...</p>
         ) : (
           <>
+          <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+            <h2 style={{ marginTop: 0 }}>Telegram</h2>
+            <p style={{ marginTop: 0, color: '#475569' }}>
+              Os alertas são enviados no canal privado. Use o botão abaixo para entrar no canal.
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                onClick={handleJoinTelegramChannel}
+                disabled={inviteLoading}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 999,
+                  border: '1px solid #cbd5e1',
+                  background: inviteLoading ? '#e2e8f0' : '#22c55e',
+                  color: inviteLoading ? '#64748b' : '#0b1220',
+                  cursor: inviteLoading ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                🔗 Entrar no canal
+              </button>
+              {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
+            </div>
+          </section>
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
             <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
