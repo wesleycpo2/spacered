@@ -53,13 +53,21 @@ export async function telegramRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const adapter = new TelegramAdapter();
-      const chatId = await adapter.resolveChatId(identifier);
+      let chatId: string | null = null;
+      try {
+        const adapter = new TelegramAdapter();
+        chatId = await adapter.resolveChatId(identifier);
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          message: error?.message || 'Falha ao comunicar com Telegram.',
+        });
+      }
 
       if (!chatId) {
         return reply.status(400).send({
           success: false,
-          message: 'Não foi possível localizar o chat. Envie /start para o bot e tente novamente.',
+          message: 'Não foi possível localizar o chat. Envie /start para o bot ou adicione o bot no canal e tente novamente.',
         });
       }
 

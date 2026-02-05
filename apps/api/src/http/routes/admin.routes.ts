@@ -295,10 +295,17 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Usuário não encontrado' });
     }
 
-    const adapter = new TelegramAdapter();
-    const chatId = await adapter.resolveChatId(identifier);
+    let chatId: string | null = null;
+    try {
+      const adapter = new TelegramAdapter();
+      chatId = await adapter.resolveChatId(identifier);
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: error?.message || 'Falha ao comunicar com Telegram.',
+      });
+    }
     if (!chatId) {
-      return reply.status(400).send({ error: 'Não foi possível localizar o chat. Envie /start para o bot e tente novamente.' });
+      return reply.status(400).send({ error: 'Não foi possível localizar o chat. Envie /start para o bot ou adicione o bot no canal e tente novamente.' });
     }
 
     const existing = await prisma.notificationConfig.findUnique({

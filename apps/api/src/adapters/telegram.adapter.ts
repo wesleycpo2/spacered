@@ -93,7 +93,14 @@ export class TelegramAdapter {
       return trimmed;
     }
 
-    const username = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+    const normalized = trimmed
+      .replace(/^https?:\/\/t\.me\//i, '')
+      .replace(/^t\.me\//i, '')
+      .replace(/^@/, '')
+      .trim();
+
+    if (!normalized) return null;
+
     const updates = await this.getUpdates();
 
     for (const update of updates) {
@@ -103,14 +110,17 @@ export class TelegramAdapter {
       const fromUsername = message.from?.username;
       const chatUsername = message.chat?.username;
 
-      if (fromUsername && fromUsername.toLowerCase() === username.toLowerCase()) {
+      if (fromUsername && fromUsername.toLowerCase() === normalized.toLowerCase()) {
         return String(message.chat?.id);
       }
 
-      if (chatUsername && chatUsername.toLowerCase() === username.toLowerCase()) {
+      if (chatUsername && chatUsername.toLowerCase() === normalized.toLowerCase()) {
         return String(message.chat?.id);
       }
     }
+
+    const directChatId = await this.getChatIdByUsername(normalized);
+    if (directChatId) return directChatId;
 
     return null;
   }
@@ -195,7 +205,7 @@ ${product.thumbnail ? `🖼️ <a href="${product.thumbnail}">Print do vídeo</a
       throw new Error('TELEGRAM_BOT_TOKEN ausente');
     }
 
-    const url = `https://api.telegram.org/bot${this.botToken}/getUpdates?limit=100`;
+    const url = `https://api.telegram.org/bot${this.botToken}/getUpdates?limit=100&allowed_updates=message,channel_post,edited_message`;
     const response = await fetch(url);
     if (!response.ok) {
       const errorText = await response.text();
@@ -204,6 +214,22 @@ ${product.thumbnail ? `🖼️ <a href="${product.thumbnail}">Print do vídeo</a
 
     const data = await response.json();
     return Array.isArray(data.result) ? data.result : [];
+  }
+
+  private async getChatIdByUsername(username: string): Promise<string | null> {
+    if (!this.botToken || this.botToken === 'mock-bot-token') {
+      throw new Error('TELEGRAM_BOT_TOKEN ausente');
+    }
+
+    const url = `https://api.telegram.org/bot${this.botToken}/getChat?chat_id=@${encodeURIComponent(username)}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json().catch(() => null);
+    const chatId = data?.result?.id;
+    return chatId ? String(chatId) : null;
   }
 
   private mockDelay(ms: number): Promise<void> {
