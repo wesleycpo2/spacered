@@ -62,6 +62,7 @@ export function AdminDashboardPage() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
+  const telegramAdminChannelLink = import.meta.env.VITE_TELEGRAM_CHANNEL_ADMIN_LINK || '';
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const adminToken = import.meta.env.VITE_ADMIN_TOKEN || '';
@@ -270,6 +271,22 @@ export function AdminDashboardPage() {
             <p style={{ marginTop: 0 }}>
               Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
             </p>
+          )}
+          {telegramAdminChannelLink && (
+            <button
+              onClick={() => window.open(telegramAdminChannelLink, '_blank', 'noopener')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: '#0f172a',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              🔗 Abrir canal
+            </button>
           )}
         </section>
 
