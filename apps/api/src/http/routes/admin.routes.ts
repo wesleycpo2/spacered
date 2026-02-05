@@ -178,6 +178,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, ...result });
   });
 
+  // POST /admin/reset-data
+  fastify.post('/admin/reset-data', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    await prisma.alert.deleteMany();
+    await prisma.trend.deleteMany();
+    await prisma.product.deleteMany();
+    await prisma.trendSignal.deleteMany();
+    await prisma.aiReport.deleteMany();
+
+    return reply.send({ success: true });
+  });
+
   fastify.post('/admin/collect-all', async (request, reply) => {
     const token = request.headers['x-admin-token'] as string | undefined;
     if (!requireAdmin(token)) {
@@ -238,15 +254,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
-    const body = request.body as { email?: string; identifier?: string };
+    const body = request.body as { email?: string; phone?: string; identifier?: string };
     const email = body?.email?.trim();
+    const phone = body?.phone?.trim();
     const identifier = body?.identifier?.trim();
 
-    if (!email || !identifier) {
-      return reply.status(400).send({ error: 'Email e identifier são obrigatórios' });
+    if ((!email && !phone) || !identifier) {
+      return reply.status(400).send({ error: 'Telefone ou email e identifier são obrigatórios' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = email
+      ? await prisma.user.findUnique({ where: { email } })
+      : await prisma.user.findUnique({ where: { phone: phone! } as any });
     if (!user) {
       return reply.status(404).send({ error: 'Usuário não encontrado' });
     }
@@ -286,6 +305,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       success: true,
       data: {
         email: user.email,
+        phone: (user as any).phone,
         enabled: updated.enabledChannels.includes('TELEGRAM'),
         telegramChatId: updated.telegramChatId,
       },
@@ -299,13 +319,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
-    const body = request.body as { email?: string };
+    const body = request.body as { email?: string; phone?: string };
     const email = body?.email?.trim();
-    if (!email) {
-      return reply.status(400).send({ error: 'Email é obrigatório' });
+    const phone = body?.phone?.trim();
+    if (!email && !phone) {
+      return reply.status(400).send({ error: 'Telefone ou email é obrigatório' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = email
+      ? await prisma.user.findUnique({ where: { email } })
+      : await prisma.user.findUnique({ where: { phone: phone! } as any });
     if (!user) {
       return reply.status(404).send({ error: 'Usuário não encontrado' });
     }
@@ -317,7 +340,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!existing) {
       return reply.send({
         success: true,
-        data: { email: user.email, enabled: false, telegramChatId: null },
+        data: { email: user.email, phone: (user as any).phone, enabled: false, telegramChatId: null },
       });
     }
 
@@ -337,6 +360,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       success: true,
       data: {
         email: user.email,
+        phone: (user as any).phone,
         enabled: updated.enabledChannels.includes('TELEGRAM'),
         telegramChatId: updated.telegramChatId,
       },

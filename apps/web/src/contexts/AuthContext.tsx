@@ -9,7 +9,7 @@ import { api, Subscription } from '../services/api';
 
 interface User {
   id: string;
-  email: string;
+  phone: string;
   name: string | null;
 }
 
@@ -18,8 +18,8 @@ interface AuthContextData {
   subscription: Subscription | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  login: (phone: string, password: string) => Promise<void>;
+  register: (phone: string, password: string, name?: string, email?: string) => Promise<void>;
   logout: () => void;
   refreshSubscription: () => Promise<void>;
 }
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const sub = await api.getSubscription();
           setSubscription(sub);
           // User info vem do token JWT, mas aqui simplificamos
-          setUser({ id: '', email: '', name: null });
+          setUser({ id: '', phone: '', name: null });
         } catch {
           api.logout();
         }
@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  async function login(email: string, password: string) {
-    const response = await api.login(email, password);
+  async function login(phone: string, password: string) {
+    const response = await api.login(phone, password);
     setUser(response.user);
     
     // Carrega dados da assinatura
@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSubscription(sub);
   }
 
-  async function register(email: string, password: string, name?: string) {
-    const response = await api.register({ email, password, name });
+  async function register(phone: string, password: string, name?: string, email?: string) {
+    const response = await api.register({ phone, password, name, email });
     setUser(response.user);
     
     const sub = await api.getSubscription();

@@ -48,7 +48,7 @@ export function AdminDashboardPage() {
   const [autoCollectorRunning, setAutoCollectorRunning] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [telegramEmail, setTelegramEmail] = useState('');
+  const [telegramUserIdentifier, setTelegramUserIdentifier] = useState('');
   const [telegramIdentifier, setTelegramIdentifier] = useState('');
   const [telegramMessage, setTelegramMessage] = useState('');
   const [telegramEnabled, setTelegramEnabled] = useState(false);
@@ -106,18 +106,51 @@ export function AdminDashboardPage() {
     }
   }
 
+  async function resetDataAndCollect() {
+    setActionMessage('Limpando dados antigos...');
+    try {
+      const resetRes = await fetch(`${apiUrl}/admin/reset-data`, {
+        method: 'POST',
+        headers,
+      });
+      if (!resetRes.ok) {
+        throw new Error('Falha ao limpar dados');
+      }
+
+      setActionMessage('Recoletando dados reais...');
+      const collectRes = await fetch(`${apiUrl}/admin/collect-all`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ limit: 30 }),
+      });
+      if (!collectRes.ok) {
+        throw new Error('Falha ao coletar dados');
+      }
+
+      await loadOverview();
+      setActionMessage('Dados reais carregados.');
+    } catch (err) {
+      setActionMessage('Falha ao resetar e coletar.');
+    }
+  }
+
   async function connectTelegram() {
-    if (!telegramEmail || !telegramIdentifier) {
-      setTelegramMessage('Informe email e @username/chat_id.');
+    if (!telegramUserIdentifier || !telegramIdentifier) {
+      setTelegramMessage('Informe telefone ou email e @username/chat_id.');
       return;
     }
+
+    const isEmail = telegramUserIdentifier.includes('@');
+    const body = isEmail
+      ? { email: telegramUserIdentifier, identifier: telegramIdentifier }
+      : { phone: telegramUserIdentifier, identifier: telegramIdentifier };
 
     setTelegramMessage('Conectando Telegram...');
     try {
       const res = await fetch(`${apiUrl}/admin/telegram/connect`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email: telegramEmail, identifier: telegramIdentifier }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -131,17 +164,20 @@ export function AdminDashboardPage() {
   }
 
   async function disableTelegram() {
-    if (!telegramEmail) {
-      setTelegramMessage('Informe o email do usuário.');
+    if (!telegramUserIdentifier) {
+      setTelegramMessage('Informe o telefone ou email do usuário.');
       return;
     }
+
+    const isEmail = telegramUserIdentifier.includes('@');
+    const body = isEmail ? { email: telegramUserIdentifier } : { phone: telegramUserIdentifier };
 
     setTelegramMessage('Desativando Telegram...');
     try {
       const res = await fetch(`${apiUrl}/admin/telegram/disable`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email: telegramEmail }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -244,6 +280,20 @@ export function AdminDashboardPage() {
             >
               ⏹ Stop
             </button>
+            <button
+              onClick={resetDataAndCollect}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid #cbd5e1',
+                background: '#0f172a',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              ♻ Limpar & Recoletar
+            </button>
             {actionMessage && <span style={{ color: '#475569' }}>{actionMessage}</span>}
             {errorMessage && <span style={{ color: '#ef4444' }}>{errorMessage}</span>}
           </div>
@@ -263,9 +313,9 @@ export function AdminDashboardPage() {
           )}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <input
-              placeholder="Email do cliente"
-              value={telegramEmail}
-              onChange={(e) => setTelegramEmail(e.target.value)}
+              placeholder="Telefone ou email do cliente"
+              value={telegramUserIdentifier}
+              onChange={(e) => setTelegramUserIdentifier(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
             />
             <input
@@ -276,7 +326,7 @@ export function AdminDashboardPage() {
             />
             <button
               onClick={connectTelegram}
-              disabled={!telegramEmail || !telegramIdentifier}
+              disabled={!telegramUserIdentifier || !telegramIdentifier}
               style={{
                 padding: '8px 16px',
                 borderRadius: 999,

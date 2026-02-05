@@ -14,8 +14,9 @@ export function LandingPage() {
   const planRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [modalStep, setModalStep] = useState<1 | 2>(1);
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'boleto'>('pix');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -66,6 +67,7 @@ export function LandingPage() {
 
   const handleOpenSignup = useCallback(() => {
     setError('');
+    setModalStep(1);
     setIsModalOpen(true);
   }, []);
 
@@ -74,20 +76,35 @@ export function LandingPage() {
       e.preventDefault();
       setError('');
 
-      if (!name.trim() || !email.trim() || !phone.trim()) {
-        setError('Preencha nome, email e celular.');
+      if (!name.trim() || !phone.trim()) {
+        setError('Preencha nome e celular.');
         return;
       }
 
       setIsLoading(true);
       const params = new URLSearchParams({
         name: name.trim(),
-        email: email.trim(),
         phone: phone.trim(),
+        paymentMethod,
       });
       navigate(`/checkout?${params.toString()}`);
     },
-    [email, name, navigate, phone]
+    [name, navigate, paymentMethod, phone]
+  );
+
+  const handleNextStep = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      setError('');
+
+      if (!name.trim() || !phone.trim()) {
+        setError('Preencha nome e celular.');
+        return;
+      }
+
+      setModalStep(2);
+    },
+    [name, phone]
   );
 
   return (
@@ -131,6 +148,21 @@ export function LandingPage() {
               }}
             >
               Ver plano
+            </button>
+            <button
+              onClick={() => navigate('/login')}
+              style={{
+                background: 'white',
+                color: '#0b1220',
+                border: 'none',
+                padding: '12px 20px',
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 8,
+              }}
+            >
+              Já sou cliente
             </button>
           </div>
         </div>
@@ -256,56 +288,110 @@ export function LandingPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ marginTop: 0 }}>Cadastro rápido</h3>
-            <form onSubmit={handleCheckout}>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Nome</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 6 }}>Celular</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: 8 }}
-                />
-              </div>
+            <p style={{ marginTop: 0, color: '#64748b' }}>Etapa {modalStep} de 2</p>
 
-              {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
+            {modalStep === 1 ? (
+              <form onSubmit={handleNextStep}>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6 }}>Nome</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: 8 }}
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6 }}>Celular</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: 8 }}
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  padding: 10,
-                  border: 'none',
-                  background: '#22c55e',
-                  color: 'white',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                {isLoading ? 'Redirecionando...' : 'Ir para checkout'}
-              </button>
-            </form>
+                {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    border: 'none',
+                    background: '#22c55e',
+                    color: 'white',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Continuar para pagamento
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleCheckout}>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6 }}>Método de pagamento</label>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {[
+                      { key: 'pix', label: 'PIX' },
+                      { key: 'card', label: 'Cartão de crédito' },
+                      { key: 'boleto', label: 'Boleto' },
+                    ].map((option) => (
+                      <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={option.key}
+                          checked={paymentMethod === option.key}
+                          onChange={() => setPaymentMethod(option.key as 'pix' | 'card' | 'boleto')}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalStep(1)}
+                    disabled={isLoading}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      border: '1px solid #e2e8f0',
+                      background: 'white',
+                      color: '#0f172a',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      border: 'none',
+                      background: '#22c55e',
+                      color: 'white',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isLoading ? 'Redirecionando...' : 'Ir para pagamento'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

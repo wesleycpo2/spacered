@@ -18,12 +18,16 @@ export function CheckoutPage() {
   const checkoutUrl = import.meta.env.VITE_CHECKOUT_URL || '';
 
   const name = query.get('name') || '';
-  const email = query.get('email') || '';
   const phone = query.get('phone') || '';
+  const paymentMethod = query.get('paymentMethod') || '';
 
   const handlePay = () => {
     if (!checkoutUrl) return;
-    const params = new URLSearchParams({ name, email, phone });
+    const params = new URLSearchParams({ name, phone, paymentMethod });
+    const returnParams = new URLSearchParams({ name, phone, paymentMethod });
+    const returnUrl = `${window.location.origin}/set-password?${returnParams.toString()}`;
+    params.set('return_url', returnUrl);
+    params.set('success_url', returnUrl);
     window.location.href = `${checkoutUrl}?${params.toString()}`;
   };
 
@@ -53,8 +57,8 @@ export function CheckoutPage() {
           <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 20 }}>
             <h3 style={{ marginTop: 0 }}>Seus dados</h3>
             <p><strong>Nome:</strong> {name || '—'}</p>
-            <p><strong>Email:</strong> {email || '—'}</p>
             <p><strong>Celular:</strong> {phone || '—'}</p>
+            <p><strong>Pagamento:</strong> {paymentMethod || '—'}</p>
             {!checkoutUrl && (
               <p style={{ color: '#ef4444' }}>
                 Checkout indisponível. Configure <strong>VITE_CHECKOUT_URL</strong>.
@@ -89,6 +93,23 @@ export function CheckoutPage() {
               }}
             >
               Ir para pagamento
+            </button>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams({ name, phone, paymentMethod });
+                navigate(`/set-password?${params.toString()}`);
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: '1px solid #22c55e',
+                background: 'white',
+                color: '#16a34a',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Já paguei
             </button>
           </div>
         </div>

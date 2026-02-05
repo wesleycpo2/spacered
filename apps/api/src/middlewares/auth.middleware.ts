@@ -23,7 +23,7 @@ export async function requireAuth(
     // Valida JWT
     await request.jwtVerify();
 
-    const { userId } = request.user as { userId: string; email: string };
+    const { userId } = request.user as { userId: string; phone: string; email?: string | null };
 
     // Busca usuário + subscription
     const user = await prisma.user.findUnique({
@@ -31,6 +31,7 @@ export async function requireAuth(
       select: {
         id: true,
         email: true,
+        phone: true,
         isActive: true,
         subscription: {
           select: {
@@ -79,6 +80,7 @@ export async function requireAuth(
     request.user = {
       userId: user.id,
       email: user.email,
+      phone: user.phone,
       subscription: user.subscription,
     };
   } catch (error) {

@@ -3,7 +3,7 @@
  * 
  * Background job que:
  * 1. Busca produtos ativos
- * 2. Simula novas métricas (mock - substituir por scraper real)
+ * 2. Usa métricas reais já coletadas
  * 3. Analisa viralScore e crescimento
  * 4. Atualiza status do produto
  * 5. Cria snapshot histórico (Trend)
@@ -105,7 +105,7 @@ export class AnalyzeTrendsJob {
    * Analisa um produto específico
    * 
    * Fluxo:
-   * 1. Simula novas métricas (mock)
+  * 1. Usa métricas reais do produto
    * 2. Calcula viralScore e crescimento
    * 3. Atualiza produto
    * 4. Cria snapshot histórico
@@ -117,17 +117,15 @@ export class AnalyzeTrendsJob {
       currentScore: product.viralScore,
     });
 
-    // 1. Simula novas métricas
-    // ⚠️ EM PRODUÇÃO: Substituir por scraper real do TikTok
-    const newMetrics = this.trendAnalyzer.simulateMetrics({
+    const newMetrics = {
       views: product.views,
       likes: product.likes,
       comments: product.comments,
       shares: product.shares,
       sales: product.sales,
-    });
+    };
 
-    logger.info('📊 Novas métricas simuladas', {
+    logger.info('📊 Métricas atuais', {
       productId: product.id,
       views: Number(newMetrics.views),
       likes: Number(newMetrics.likes),

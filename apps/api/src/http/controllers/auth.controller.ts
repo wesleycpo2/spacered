@@ -22,23 +22,29 @@ export async function register(
 ) {
   // Schema de validação com Zod
   const registerSchema = z.object({
-    email: z.string().email('Email inválido'),
+    phone: z.string().min(8, 'Celular inválido'),
+    email: z.string().email('Email inválido').optional(),
     password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
     name: z.string().optional(),
   });
 
   try {
     // Valida o body da requisição
-    const { email, password, name } = registerSchema.parse(request.body);
+    const { phone, email, password, name } = registerSchema.parse(request.body);
 
     // Chama o service para registrar
-    const user = await authService.register({ email, password, name });
+    const user = await authService.register({ phone, email, password, name });
+
+    const tokens = authService.generateTokens(request.server, user.id, user.phone, user.email);
 
     // Retorna sucesso
     return reply.status(201).send({
       success: true,
       message: 'Usuário registrado com sucesso. Complete o pagamento para ativar sua assinatura.',
-      data: user,
+      data: {
+        user,
+        tokens,
+      },
     });
   } catch (error: any) {
     // Tratamento de erros
@@ -67,19 +73,19 @@ export async function login(
 ) {
   // Schema de validação
   const loginSchema = z.object({
-    email: z.string().email('Email inválido'),
+    phone: z.string().min(8, 'Celular inválido'),
     password: z.string().min(1, 'Senha é obrigatória'),
   });
 
   try {
     // Valida o body
-    const { email, password } = loginSchema.parse(request.body);
+    const { phone, password } = loginSchema.parse(request.body);
 
     // Autentica o usuário
-    const user = await authService.login(email, password);
+    const user = await authService.login(phone, password);
 
     // Gera os tokens JWT
-    const tokens = authService.generateTokens(request.server, user.id, user.email);
+    const tokens = authService.generateTokens(request.server, user.id, user.phone, user.email);
 
     // Retorna tokens e dados do usuário
     return reply.status(200).send({
@@ -89,6 +95,7 @@ export async function login(
         user: {
           id: user.id,
           email: user.email,
+          phone: user.phone,
           name: user.name,
           subscription: user.subscription,
         },
@@ -154,6 +161,57 @@ export async function refreshToken(
     return reply.status(401).send({
       success: false,
       message: error.message || 'Refresh token inválido',
+    });
+  }
+}
+
+/**
+ * SET PASSWORD (PÓS-PAGAMENTO)
+ * POST /auth/set-password
+ */
+export async function setPassword(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const schema = z.object({
+    phone: z.string().min(8, 'Celular inválido'),
+    password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    name: z.string().optional(),
+    email: z.string().email('Email inválido').optional(),
+    paymentMethod: z.string().optional(),
+  });
+
+  try {
+    const { phone, password, name, email, paymentMethod } = schema.parse(request.body);
+    const user = await authService.setPassword({ phone, password, name, email, paymentMethod });
+    const tokens = authService.generateTokens(request.server, user.id, user.phone, user.email);
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Senha definida com sucesso',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          name: user.name,
+          subscription: user.subscription,
+        },
+        tokens,
+      },
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return reply.status(400).send({
+        success: false,
+        message: 'Dados inválidos',
+        errors: error.errors,
+      });
+    }
+
+    return reply.status(400).send({
+      success: false,
+      message: error.message || 'Erro ao definir senha',
     });
   }
 }

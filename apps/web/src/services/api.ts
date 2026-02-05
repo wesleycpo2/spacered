@@ -17,15 +17,25 @@ interface LoginResponse {
   refreshToken: string;
   user: {
     id: string;
-    email: string;
+    phone: string;
+    email?: string | null;
     name: string | null;
   };
 }
 
 interface RegisterData {
-  email: string;
+  phone: string;
   password: string;
   name?: string;
+  email?: string;
+}
+
+interface SetPasswordData {
+  phone: string;
+  password: string;
+  name?: string;
+  email?: string;
+  paymentMethod?: string;
 }
 
 interface Subscription {
@@ -45,6 +55,14 @@ interface Niche {
 interface TelegramConfig {
   enabled: boolean;
   telegramChatId: string | null;
+}
+
+interface OverviewResponse {
+  success: boolean;
+  products: any[];
+  signals: any[];
+  aiReport: any | null;
+  aiReports: any[];
 }
 
 class ApiService {
@@ -102,26 +120,20 @@ class ApiService {
     return response.json();
   }
 
-  async login(email: string, password: string): Promise<LoginResponse> {
-    const data = await this.request<LoginResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+  async login(phone: string, password: string): Promise<LoginResponse> {
+    const data = await this.request<{ success: boolean; data: { user: LoginResponse['user']; tokens: { accessToken: string; refreshToken: string } } }>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ phone, password }),
+      }
+    );
 
-    // Salva tokens
-    this.accessToken = data.accessToken;
-    this.refreshToken = data.refreshToken;
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-
-    return data;
-  }
-
-  async register(data: RegisterData): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const response: LoginResponse = {
+      user: data.data.user,
+      accessToken: data.data.tokens.accessToken,
+      refreshToken: data.data.tokens.refreshToken,
+    };
 
     // Salva tokens
     this.accessToken = response.accessToken;
@@ -132,17 +144,69 @@ class ApiService {
     return response;
   }
 
+  async register(data: RegisterData): Promise<LoginResponse> {
+    const response = await this.request<{ success: boolean; data: { user: LoginResponse['user']; tokens: { accessToken: string; refreshToken: string } } }>(
+      '/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+
+    const parsed: LoginResponse = {
+      user: response.data.user,
+      accessToken: response.data.tokens.accessToken,
+      refreshToken: response.data.tokens.refreshToken,
+    };
+
+    // Salva tokens
+    this.accessToken = parsed.accessToken;
+    this.refreshToken = parsed.refreshToken;
+    localStorage.setItem('accessToken', parsed.accessToken);
+    localStorage.setItem('refreshToken', parsed.refreshToken);
+
+    return parsed;
+  }
+
+  async setPassword(data: SetPasswordData): Promise<LoginResponse> {
+    const response = await this.request<{ success: boolean; data: { user: LoginResponse['user']; tokens: { accessToken: string; refreshToken: string } } }>(
+      '/auth/set-password',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+
+    const parsed: LoginResponse = {
+      user: response.data.user,
+      accessToken: response.data.tokens.accessToken,
+      refreshToken: response.data.tokens.refreshToken,
+    };
+
+    this.accessToken = parsed.accessToken;
+    this.refreshToken = parsed.refreshToken;
+    localStorage.setItem('accessToken', parsed.accessToken);
+    localStorage.setItem('refreshToken', parsed.refreshToken);
+
+    return parsed;
+  }
+
   async renewToken(): Promise<boolean> {
     try {
       if (!this.refreshToken) return false;
 
-      const data = await this.request<{ accessToken: string }>('/auth/refresh', {
+      const data = await this.request<{ success: boolean; data: { accessToken: string; refreshToken: string } }>(
+        '/auth/refresh',
+        {
         method: 'POST',
         body: JSON.stringify({ refreshToken: this.refreshToken }),
-      });
+      }
+      );
 
-      this.accessToken = data.accessToken;
-      localStorage.setItem('accessToken', data.accessToken);
+      this.accessToken = data.data.accessToken;
+      this.refreshToken = data.data.refreshToken;
+      localStorage.setItem('accessToken', data.data.accessToken);
+      localStorage.setItem('refreshToken', data.data.refreshToken);
       return true;
     } catch {
       this.logout();
@@ -201,10 +265,15 @@ class ApiService {
     return response.data;
   }
 
+  async getOverview(): Promise<OverviewResponse> {
+    const response = await this.request<OverviewResponse>('/me/overview');
+    return response;
+  }
+
   isAuthenticated(): boolean {
     return !!this.accessToken;
   }
 }
 
 export const api = new ApiService();
-export type { LoginResponse, RegisterData, Subscription, Niche, TelegramConfig };
+export type { LoginResponse, RegisterData, Subscription, Niche, TelegramConfig, OverviewResponse };

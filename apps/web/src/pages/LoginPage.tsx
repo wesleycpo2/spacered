@@ -9,14 +9,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
@@ -25,11 +23,7 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      if (isRegistering) {
-        await register(email, password, name || undefined);
-      } else {
-        await login(email, password);
-      }
+      await login(phone, password);
       navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao autenticar');
@@ -40,31 +34,20 @@ export function LoginPage() {
 
   return (
     <div style={{ maxWidth: 400, margin: '100px auto', padding: 20 }}>
-      <h1>{isRegistering ? 'Criar Conta' : 'Login'}</h1>
+      <h1>Login</h1>
+      <p style={{ color: '#64748b', marginTop: 0 }}>
+        Use o celular cadastrado após o primeiro pagamento.
+      </p>
 
       <form onSubmit={handleSubmit}>
-        {isRegistering && (
-          <div style={{ marginBottom: 15 }}>
-            <label style={{ display: 'block', marginBottom: 5 }}>
-              Nome (opcional)
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: '100%', padding: 8 }}
-            />
-          </div>
-        )}
-
         <div style={{ marginBottom: 15 }}>
           <label style={{ display: 'block', marginBottom: 5 }}>
-            Email
+            Celular
           </label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             required
             style={{ width: '100%', padding: 8 }}
           />
@@ -102,22 +85,7 @@ export function LoginPage() {
             cursor: 'pointer',
           }}
         >
-          {isLoading ? 'Aguarde...' : isRegistering ? 'Criar Conta' : 'Entrar'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setIsRegistering(!isRegistering)}
-          style={{
-            width: '100%',
-            padding: 10,
-            marginTop: 10,
-            backgroundColor: 'transparent',
-            border: '1px solid #ccc',
-            cursor: 'pointer',
-          }}
-        >
-          {isRegistering ? 'Já tenho conta' : 'Criar nova conta'}
+          {isLoading ? 'Aguarde...' : 'Entrar'}
         </button>
       </form>
     </div>

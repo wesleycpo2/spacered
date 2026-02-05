@@ -15,7 +15,8 @@ declare module 'fastify' {
   interface FastifyRequest {
     user?: {
       userId: string;
-      email: string;
+      email?: string | null;
+      phone: string;
       subscription: {
         id: string;
         status: SubscriptionStatus;
@@ -33,11 +34,13 @@ declare module '@fastify/jwt' {
   interface FastifyJWT {
     payload: {
       userId: string;
-      email: string;
+      email?: string | null;
+      phone: string;
     };
     user: {
       userId: string;
-      email: string;
+      email?: string | null;
+      phone: string;
     };
   }
 }

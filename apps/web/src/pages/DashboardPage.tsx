@@ -9,17 +9,57 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api, Niche } from '../services/api';
 
+interface ProductItem {
+  id: string;
+  tiktokUrl: string;
+  title: string;
+  viralScore: number;
+  status: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  thumbnail?: string | null;
+  insights?: {
+    growth48h: number;
+    engagementLabel: string;
+    saturationLabel: string;
+    probability: number;
+  };
+}
+
+interface TrendSignalItem {
+  id: string;
+  type: string;
+  value: string;
+  category: string | null;
+  region: string | null;
+  growthPercent: number;
+  collectedAt: string;
+}
+
+interface AiReportItem {
+  id: string;
+  summary: string;
+  createdAt: string;
+}
+
 export function DashboardPage() {
   const { user, subscription, logout, refreshSubscription } = useAuth();
   const navigate = useNavigate();
 
   const [allNiches, setAllNiches] = useState<Niche[]>([]);
   const [userNiches, setUserNiches] = useState<Niche[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [signals, setSignals] = useState<TrendSignalItem[]>([]);
+  const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
+  const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [telegramIdentifier, setTelegramIdentifier] = useState('');
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [telegramMessage, setTelegramMessage] = useState('');
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
 
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
@@ -31,9 +71,10 @@ export function DashboardPage() {
     try {
       setIsLoading(true);
       await refreshSubscription();
-      const [niches, myNiches] = await Promise.all([
+      const [niches, myNiches, overview] = await Promise.all([
         api.getNiches(),
         api.getUserNiches(),
+        api.getOverview(),
       ]);
       try {
         const telegramConfig = await api.getTelegramConfig();
@@ -44,6 +85,10 @@ export function DashboardPage() {
       }
       setAllNiches(niches);
       setUserNiches(myNiches);
+      setProducts(overview.products || []);
+      setSignals(overview.signals || []);
+      setLatestReport(overview.aiReport || null);
+      setAiReports(overview.aiReports || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
     } finally {
@@ -89,11 +134,18 @@ export function DashboardPage() {
     }
   }
 
+  function handleAlertsPlay() {
+    if (!telegramEnabled) return;
+    setAlertsEnabled(true);
+    setTelegramMessage('Alertas liberados.');
+  }
+
   async function handleTelegramStop() {
     setTelegramMessage('Desativando Telegram...');
     try {
       const data = await api.disableTelegram();
       setTelegramEnabled(Boolean(data.enabled));
+      setAlertsEnabled(false);
       setTelegramMessage('Telegram desativado.');
     } catch (err) {
       setTelegramMessage(err instanceof Error ? err.message : 'Falha ao desativar Telegram.');
@@ -120,10 +172,35 @@ export function DashboardPage() {
   const isActive = subscription?.status === 'ACTIVE';
 
   return (
-    <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 30 }}>
-        <h1>TikTok Trend Alert</h1>
-        <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+    <div
+      style={{
+        fontFamily: 'system-ui, sans-serif',
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #0b1220 0%, #0f172a 20%, #f8fafc 70%)',
+      }}
+    >
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto', color: '#0f172a' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, color: 'white' }}>
+        <div>
+          <p style={{ letterSpacing: 2, textTransform: 'uppercase', fontSize: 12, color: '#94a3b8', margin: 0 }}>
+            TikTok Trend Alert
+          </p>
+          <h1 style={{ margin: '6px 0 4px', fontSize: 28 }}>Dashboard do Cliente</h1>
+          <p style={{ margin: 0, color: '#cbd5f5' }}>
+            {user?.phone ? `Conta: ${user.phone}` : 'Conta ativa'}
+          </p>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '8px 16px',
+            cursor: 'pointer',
+            borderRadius: 999,
+            border: '1px solid #cbd5e1',
+            background: 'white',
+            fontWeight: 600,
+          }}
+        >
           Sair
         </button>
       </header>
@@ -134,14 +211,35 @@ export function DashboardPage() {
         </div>
       )}
 
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
+        <div style={{ background: '#0f172a', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>Produtos monitorados</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{products.length}</div>
+        </div>
+        <div style={{ background: '#111827', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1f2937' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>Sinais recentes</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
+        </div>
+        <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>Relatórios de IA</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{aiReports.length}</div>
+        </div>
+        <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: telegramEnabled ? '#38bdf8' : '#94a3b8' }}>
+            {telegramEnabled ? 'Conectado' : 'Pendente'}
+          </div>
+        </div>
+      </section>
+
       {/* STATUS DA ASSINATURA */}
-      <section style={{ marginBottom: 40, padding: 20, border: '1px solid #ddd' }}>
+      <section style={{ marginBottom: 24, padding: 20, border: '1px solid #e2e8f0', borderRadius: 14, background: 'white' }}>
         <h2>Status da Assinatura</h2>
         
         {subscription ? (
           <div>
             <p>
-              <strong>Email:</strong> {user?.email}
+              <strong>Celular:</strong> {user?.phone}
             </p>
             <p>
               <strong>Plano:</strong>{' '}
@@ -187,10 +285,10 @@ export function DashboardPage() {
       </section>
 
       {/* TELEGRAM */}
-      <section style={{ marginBottom: 40, padding: 20, border: '1px solid #ddd' }}>
+      <section style={{ marginBottom: 24, padding: 20, border: '1px solid #e2e8f0', borderRadius: 14, background: 'white' }}>
         <h2>Telegram</h2>
         <p style={{ marginTop: 0, color: '#475569' }}>
-          Envie <strong>/start</strong> para o bot antes de conectar.
+          Envie <strong>/start</strong> para o bot, depois informe seu @username e clique em <strong>Verificar</strong>.
         </p>
         {telegramBotUsername && (
           <p style={{ marginTop: 0 }}>
@@ -217,6 +315,21 @@ export function DashboardPage() {
               fontWeight: 600,
             }}
           >
+            ✅ Verificar
+          </button>
+          <button
+            onClick={handleAlertsPlay}
+            disabled={!telegramEnabled || alertsEnabled}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid #cbd5e1',
+              background: !telegramEnabled || alertsEnabled ? '#e2e8f0' : '#22c55e',
+              color: !telegramEnabled || alertsEnabled ? '#64748b' : '#0b1220',
+              cursor: !telegramEnabled || alertsEnabled ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+            }}
+          >
             ▶ Play
           </button>
           <button
@@ -238,8 +351,84 @@ export function DashboardPage() {
         </div>
       </section>
 
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 16, marginBottom: 24 }}>
+        <div style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
+          <h2 style={{ marginTop: 0 }}>Relatório IA</h2>
+          {latestReport ? (
+            <>
+              <p style={{ color: '#475569' }}>{latestReport.summary}</p>
+              <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                Última atualização: {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(latestReport.createdAt))}
+              </p>
+            </>
+          ) : (
+            <p style={{ color: '#64748b' }}>Relatório ainda não disponível.</p>
+          )}
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
+          <h2 style={{ marginTop: 0 }}>Histórico IA</h2>
+          {aiReports.length === 0 && <p style={{ color: '#64748b' }}>Sem relatórios recentes.</p>}
+          <ul style={{ paddingLeft: 18, margin: 0, color: '#475569' }}>
+            {aiReports.map((report) => (
+              <li key={report.id} style={{ marginBottom: 8 }}>
+                {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(report.createdAt))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
+        <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          {products.slice(0, 6).map((p) => (
+            <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Score</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{Number(p.views).toLocaleString()} views</div>
+              <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6 }}>
+                Cresc. 48h: {p.insights?.growth48h ?? 0}%
+              </div>
+              <div style={{ fontSize: 12, color: '#0f172a' }}>
+                Saturação: {p.insights?.saturationLabel ?? 'n/d'}
+              </div>
+              <div style={{ fontSize: 12, color: '#0f172a' }}>
+                Engajamento: {p.insights?.engagementLabel ?? 'n/d'}
+              </div>
+              <div style={{ fontSize: 12, color: '#0f172a' }}>
+                Probabilidade: {p.insights?.probability ?? 0}%
+              </div>
+              <a href={p.tiktokUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb' }}>
+                Abrir no TikTok
+              </a>
+            </div>
+          ))}
+          {products.length === 0 && <p style={{ color: '#64748b' }}>Nenhum produto carregado ainda.</p>}
+        </div>
+      </section>
+
+      <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
+        <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+          {signals.slice(0, 12).map((signal) => (
+            <div key={signal.id} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{signal.type}</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{signal.value}</div>
+              <div style={{ fontSize: 12, color: '#475569' }}>
+                Crescimento: {signal.growthPercent}%
+              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                {signal.region || 'Global'}
+              </div>
+            </div>
+          ))}
+          {signals.length === 0 && <p style={{ color: '#64748b' }}>Sem sinais recentes.</p>}
+        </div>
+      </section>
+
       {/* SELEÇÃO DE NICHOS */}
-      <section style={{ padding: 20, border: '1px solid #ddd' }}>
+      <section style={{ padding: 20, border: '1px solid #e2e8f0', borderRadius: 14, background: 'white' }}>
         <h2>Seus Nichos</h2>
         
         {!isPremium && (
@@ -312,6 +501,7 @@ export function DashboardPage() {
           </p>
         )}
       </section>
+      </div>
     </div>
   );
 }

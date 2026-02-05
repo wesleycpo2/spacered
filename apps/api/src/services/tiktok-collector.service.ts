@@ -3,7 +3,7 @@
  * 
  * Coleta dados públicos de hashtags/tendências.
  * - Se TIKTOK_TRENDS_URL estiver definido, busca JSON externo.
- * - Caso contrário, usa dados mockados (MVP).
+ * - Caso contrário, usa apenas fontes reais (RapidAPI).
  */
 
 import { logger } from '../utils/logger';
@@ -92,11 +92,12 @@ export class TikTokCollectorService {
 
         return list.slice(0, limit);
       } catch (error) {
-        logger.warn('⚠️ Falha ao buscar trends externas, usando mock', { error });
+        logger.warn('⚠️ Falha ao buscar trends externas', { error });
       }
     }
 
-    return this.buildMockTrends(limit);
+    logger.warn('⚠️ Nenhuma fonte real de trends configurada');
+    return [];
   }
 
   async fetchTrendingVideos(limit = 20): Promise<TrendingVideoItem[]> {
@@ -151,7 +152,7 @@ export class TikTokCollectorService {
 
         return normalized.slice(0, limit);
       } catch (error) {
-        logger.warn('⚠️ Falha ao buscar signals externos, usando mock', { error });
+        logger.warn('⚠️ Falha ao buscar signals externos', { error });
       }
     }
 
@@ -160,7 +161,8 @@ export class TikTokCollectorService {
       return rapidSignals;
     }
 
-    return this.buildMockSignals(limit);
+    logger.warn('⚠️ Nenhum sinal real disponível');
+    return [];
   }
 
   private async fetchSignalsFromRapidApi(limit: number): Promise<TrendSignalItem[]> {
@@ -225,112 +227,6 @@ export class TikTokCollectorService {
       logger.warn('⚠️ Falha ao buscar search RapidAPI', { error, type });
       return [];
     }
-  }
-
-  private buildMockTrends(limit: number): HashtagTrendItem[] {
-    const base = [
-      'tiktokmademebuyit',
-      'achadinhos',
-      'viralproduct',
-      'skincare',
-      'gadgets',
-      'modafeminina',
-      'casaedecor',
-      'fitness',
-      'beleza',
-      'petshop',
-      'cozinha',
-      'infantil',
-      'ofertas',
-      'trendalert',
-      'produtoviral',
-      'tiktokshop',
-      'diy',
-      'organização',
-      'perfumaria',
-      'presentes',
-    ];
-
-    const items = base.slice(0, limit).map((tag) => {
-      const views = this.randomRange(80_000, 2_500_000);
-      const likes = this.randomRange(6_000, 180_000);
-      const comments = this.randomRange(500, 25_000);
-      const shares = this.randomRange(400, 45_000);
-
-      return {
-        hashtag: tag,
-        views,
-        likes,
-        comments,
-        shares,
-      };
-    });
-
-    return items;
-  }
-
-  private buildMockSignals(limit: number): TrendSignalItem[] {
-    const hashtags = [
-      'tiktokmademebuyit',
-      'achadinhos',
-      'viralproduct',
-      'moda',
-      'beleza',
-      'fitness',
-      'casaedecor',
-      'cozinha',
-      'petshop',
-    ];
-
-    const sounds = [
-      'Som viral 01',
-      'Som viral 02',
-      'Som viral 03',
-      'Som viral 04',
-    ];
-
-    const videos = [
-      'Vídeo demo 01',
-      'Vídeo demo 02',
-      'Vídeo demo 03',
-    ];
-
-    const signals: TrendSignalItem[] = [];
-    const max = Math.max(1, limit);
-
-    for (let i = 0; i < max; i++) {
-      const bucket = i % 3;
-      if (bucket === 0) {
-        signals.push({
-          type: 'HASHTAG',
-          value: `#${hashtags[i % hashtags.length]}`,
-          category: 'Geral',
-          region: 'BR',
-          growthPercent: this.randomRange(12, 180),
-          source: 'mock',
-        });
-      } else if (bucket === 1) {
-        signals.push({
-          type: 'SOUND',
-          value: sounds[i % sounds.length],
-          category: 'Sons',
-          region: 'BR',
-          growthPercent: this.randomRange(10, 140),
-          source: 'mock',
-        });
-      } else {
-        signals.push({
-          type: 'VIDEO',
-          value: videos[i % videos.length],
-          category: 'Vídeos',
-          region: 'BR',
-          growthPercent: this.randomRange(8, 120),
-          source: 'mock',
-        });
-      }
-    }
-
-    return signals.slice(0, limit);
   }
 
   private toSignal(item: HashtagTrendItem | TrendSignalItem): TrendSignalItem {

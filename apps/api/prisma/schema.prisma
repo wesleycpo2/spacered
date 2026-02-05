@@ -70,7 +70,8 @@ enum TrendSignalType {
 
 model User {
   id       String  @id @default(uuid())
-  email    String  @unique
+  email    String? @unique
+  phone    String  @unique
   password String  // Hash bcrypt
   name     String?
 
