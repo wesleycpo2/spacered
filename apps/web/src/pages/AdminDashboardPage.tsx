@@ -285,7 +285,7 @@ export function AdminDashboardPage() {
                 fontWeight: 600,
               }}
             >
-              🔗 Abrir canal
+              🔗 Entrar no canal
             </button>
           )}
         </section>
