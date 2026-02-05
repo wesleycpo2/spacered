@@ -6,6 +6,7 @@
 
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../../config/prisma';
+import { logger } from '../../utils/logger';
 import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
 import { runVideoCollector } from '../../jobs/collect-videos.job';
@@ -29,16 +30,63 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
-    const products = await prisma.product.findMany({
-      orderBy: { viralScore: 'desc' },
-      take: 10,
-      include: {
-        trends: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
+    async function fetchProducts() {
+      try {
+        return await prisma.product.findMany({
+          orderBy: { viralScore: 'desc' },
+          take: 10,
+          include: {
+            trends: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
+      } catch (error) {
+        logger.warn('⚠️ Falha ao carregar products com schema atualizado. Usando fallback.', { error });
+        return prisma.product.findMany({
+          orderBy: { viralScore: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            tiktokUrl: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            views: true,
+            likes: true,
+            comments: true,
+            shares: true,
+            sales: true,
+            viralScore: true,
+            status: true,
+            nicheId: true,
+            isActive: true,
+            lastScrapedAt: true,
+            createdAt: true,
+            updatedAt: true,
+            trends: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                productId: true,
+                views: true,
+                likes: true,
+                comments: true,
+                shares: true,
+                sales: true,
+                viralScore: true,
+                status: true,
+                createdAt: true,
+              },
+            },
+          },
+        });
+      }
+    }
+
+    const products = await fetchProducts();
 
     const since = new Date();
     since.setHours(since.getHours() - 48);
@@ -46,14 +94,39 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const serializedProducts = await Promise.all(
       products.map(async (product) => {
         const productAny = product as any;
-        const trends = await prisma.trend.findMany({
-          where: {
-            productId: product.id,
-            createdAt: { gte: since },
-          },
-          orderBy: { createdAt: 'asc' },
-          take: 200,
-        });
+        let trends = [] as Array<any>;
+        try {
+          trends = await prisma.trend.findMany({
+            where: {
+              productId: product.id,
+              createdAt: { gte: since },
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 200,
+          });
+        } catch (error) {
+          logger.warn('⚠️ Falha ao carregar trends com schema atualizado. Usando fallback.', { error });
+          trends = await prisma.trend.findMany({
+            where: {
+              productId: product.id,
+              createdAt: { gte: since },
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 200,
+            select: {
+              id: true,
+              productId: true,
+              views: true,
+              likes: true,
+              comments: true,
+              shares: true,
+              sales: true,
+              viralScore: true,
+              status: true,
+              createdAt: true,
+            },
+          });
+        }
 
         const first = trends[0];
         const last = trends[trends.length - 1];
