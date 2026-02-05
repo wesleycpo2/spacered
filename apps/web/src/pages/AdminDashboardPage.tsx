@@ -14,6 +14,18 @@ interface ProductItem {
   likes: bigint | number;
   comments: bigint | number;
   shares: bigint | number;
+  impressions?: number | null;
+  postCount?: number | null;
+  postChange?: number | null;
+  ctr?: number | null;
+  cvr?: number | null;
+  cpa?: number | null;
+  cost?: number | null;
+  playSixRate?: number | null;
+  urlTitle?: string | null;
+  ecomCategory1?: string | null;
+  ecomCategory2?: string | null;
+  ecomCategory3?: string | null;
   lastScrapedAt: string | null;
   insights?: {
     growth48h: number;
@@ -378,6 +390,21 @@ export function AdminDashboardPage() {
                   <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>{Number(p.views).toLocaleString()} views</div>
+                  {p.impressions != null && (
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      Impressões: {Number(p.impressions).toLocaleString()}
+                    </div>
+                  )}
+                  {(p.ctr != null || p.cvr != null || p.cpa != null) && (
+                    <div style={{ fontSize: 12, color: '#475569' }}>
+                      CTR: {p.ctr != null ? `${p.ctr.toFixed(2)}%` : 'n/d'} • CVR: {p.cvr != null ? `${p.cvr.toFixed(2)}%` : 'n/d'} • CPA: {p.cpa != null ? p.cpa.toFixed(2) : 'n/d'}
+                    </div>
+                  )}
+                  {(p.postCount != null || p.postChange != null) && (
+                    <div style={{ fontSize: 12, color: '#475569' }}>
+                      Posts: {p.postCount ?? 'n/d'} • Δ {p.postChange != null ? `${p.postChange.toFixed(2)}%` : 'n/d'}
+                    </div>
+                  )}
                   <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6 }}>
                     Cresc. 48h: {p.insights?.growth48h ?? 0}%
                   </div>

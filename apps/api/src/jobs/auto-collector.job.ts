@@ -9,6 +9,7 @@ import { logger } from '../utils/logger';
 import { runHashtagCollector } from './collect-hashtags.job';
 import { runSignalCollector } from './collect-signals.job';
 import { runVideoCollector } from './collect-videos.job';
+import { runProductCollector } from './collect-products.job';
 import { AiAnalyzerService } from '../services/ai-analyzer.service';
 
 let intervalHandle: NodeJS.Timeout | null = null;
@@ -32,15 +33,18 @@ async function setAutoCollectorState(running: boolean) {
 export async function runAutoCollectorOnce() {
   const hashtagLimit = Number(process.env.AUTO_HASHTAG_LIMIT || 20);
   const videoLimit = Number(process.env.AUTO_VIDEO_LIMIT || 20);
+  const productLimit = Number(process.env.AUTO_PRODUCT_LIMIT || 20);
   const signalLimit = Number(process.env.AUTO_SIGNAL_LIMIT || 30);
 
   logger.info('🤖 Auto-collector: iniciando ciclo', {
     hashtagLimit,
+    productLimit,
     signalLimit,
   });
 
   await runHashtagCollector(hashtagLimit);
   await runVideoCollector(videoLimit);
+  await runProductCollector(productLimit);
   await runSignalCollector(signalLimit);
 
   const enableAi = (process.env.AUTO_AI_ENABLED || 'false').toLowerCase() === 'true';

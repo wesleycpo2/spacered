@@ -179,6 +179,20 @@ model Product {
   shares   BigInt @default(0)
   sales    Int    @default(0)
 
+  // Métricas avançadas (TikTok Shop)
+  impressions BigInt?
+  ctr         Float?
+  cvr         Float?
+  cpa         Float?
+  cost        Float?
+  postCount   Int?
+  postChange  Float?
+  playSixRate Float?
+  urlTitle    String?
+  ecomCategory1 String?
+  ecomCategory2 String?
+  ecomCategory3 String?
+
   // Análise de tendência
   viralScore Int           @default(0) // 0-100
   status     ProductStatus @default(MONITORING)
@@ -243,6 +257,16 @@ model Trend {
   comments BigInt
   shares   BigInt
   sales    Int
+
+  // Snapshot de métricas avançadas (TikTok Shop)
+  impressions BigInt?
+  ctr         Float?
+  cvr         Float?
+  cpa         Float?
+  cost        Float?
+  postCount   Int?
+  postChange  Float?
+  playSixRate Float?
 
   // Análise
   viralScore Int           @default(0)

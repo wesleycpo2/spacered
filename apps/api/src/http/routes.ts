@@ -120,6 +120,7 @@ export async function routes(fastify: FastifyInstance) {
 
       const serializedProducts = await Promise.all(
         products.map(async (product) => {
+          const productAny = product as any;
           const trends = await prisma.trend.findMany({
             where: {
               productId: product.id,
@@ -168,12 +169,33 @@ export async function routes(fastify: FastifyInstance) {
             likes: Number(product.likes),
             comments: Number(product.comments),
             shares: Number(product.shares),
+            impressions: productAny.impressions ? Number(productAny.impressions) : null,
+            postCount: productAny.postCount ?? null,
+            postChange: productAny.postChange ?? null,
+            ctr: productAny.ctr ?? null,
+            cvr: productAny.cvr ?? null,
+            cpa: productAny.cpa ?? null,
+            cost: productAny.cost ?? null,
+            playSixRate: productAny.playSixRate ?? null,
+            urlTitle: productAny.urlTitle ?? null,
+            ecomCategory1: productAny.ecomCategory1 ?? null,
+            ecomCategory2: productAny.ecomCategory2 ?? null,
+            ecomCategory3: productAny.ecomCategory3 ?? null,
             trends: product.trends.map((trend) => ({
+              ...(trend as any),
               ...trend,
               views: Number(trend.views),
               likes: Number(trend.likes),
               comments: Number(trend.comments),
               shares: Number(trend.shares),
+              impressions: (trend as any).impressions ? Number((trend as any).impressions) : null,
+              postCount: (trend as any).postCount ?? null,
+              postChange: (trend as any).postChange ?? null,
+              ctr: (trend as any).ctr ?? null,
+              cvr: (trend as any).cvr ?? null,
+              cpa: (trend as any).cpa ?? null,
+              cost: (trend as any).cost ?? null,
+              playSixRate: (trend as any).playSixRate ?? null,
             })),
             insights: {
               growth48h,

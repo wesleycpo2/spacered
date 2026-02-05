@@ -9,6 +9,7 @@ import { prisma } from '../../config/prisma';
 import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
 import { runVideoCollector } from '../../jobs/collect-videos.job';
+import { runProductCollector } from '../../jobs/collect-products.job';
 import { isAutoCollectorRunning, startAutoCollector, stopAutoCollector } from '../../jobs/auto-collector.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
 import { AiAnalyzerService } from '../../services/ai-analyzer.service';
@@ -44,6 +45,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     const serializedProducts = await Promise.all(
       products.map(async (product) => {
+        const productAny = product as any;
         const trends = await prisma.trend.findMany({
           where: {
             productId: product.id,
@@ -92,12 +94,33 @@ export async function adminRoutes(fastify: FastifyInstance) {
           likes: Number(product.likes),
           comments: Number(product.comments),
           shares: Number(product.shares),
+          impressions: productAny.impressions ? Number(productAny.impressions) : null,
+          postCount: productAny.postCount ?? null,
+          postChange: productAny.postChange ?? null,
+          ctr: productAny.ctr ?? null,
+          cvr: productAny.cvr ?? null,
+          cpa: productAny.cpa ?? null,
+          cost: productAny.cost ?? null,
+          playSixRate: productAny.playSixRate ?? null,
+          urlTitle: productAny.urlTitle ?? null,
+          ecomCategory1: productAny.ecomCategory1 ?? null,
+          ecomCategory2: productAny.ecomCategory2 ?? null,
+          ecomCategory3: productAny.ecomCategory3 ?? null,
           trends: product.trends.map((trend) => ({
+            ...(trend as any),
             ...trend,
             views: Number(trend.views),
             likes: Number(trend.likes),
             comments: Number(trend.comments),
             shares: Number(trend.shares),
+            impressions: (trend as any).impressions ? Number((trend as any).impressions) : null,
+            postCount: (trend as any).postCount ?? null,
+            postChange: (trend as any).postChange ?? null,
+            ctr: (trend as any).ctr ?? null,
+            cvr: (trend as any).cvr ?? null,
+            cpa: (trend as any).cpa ?? null,
+            cost: (trend as any).cost ?? null,
+            playSixRate: (trend as any).playSixRate ?? null,
           })),
           insights: {
             growth48h,
@@ -201,14 +224,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
 
     const limit = Number((request.body as { limit?: number })?.limit || 30);
-    const [videoResult, signalResult] = await Promise.all([
+    const [videoResult, productResult, signalResult] = await Promise.all([
       runVideoCollector(limit),
+      runProductCollector(limit),
       runSignalCollector(limit),
     ]);
 
     return reply.send({
       success: true,
       videos: videoResult.total,
+      products: productResult.total,
       signals: signalResult.total,
     });
   });

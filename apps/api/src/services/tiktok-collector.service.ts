@@ -47,6 +47,31 @@ export interface TrendingVideoItem {
   };
 }
 
+export interface TopProductItem {
+  url_title?: string;
+  cover_url?: string | null;
+  impression?: number;
+  like?: number;
+  comment?: number;
+  share?: number;
+  post?: number;
+  post_change?: number;
+  cost?: number;
+  cpa?: number;
+  ctr?: number;
+  cvr?: number;
+  play_six_rate?: number;
+  first_ecom_category?: {
+    value?: string;
+  };
+  second_ecom_category?: {
+    value?: string;
+  };
+  third_ecom_category?: {
+    value?: string;
+  };
+}
+
 interface ExternalPayload {
   data?: HashtagTrendItem[];
 }
@@ -56,18 +81,51 @@ interface ExternalSignalPayload {
 }
 
 interface RapidApiTrendingPayload {
-  data?: TrendingVideoItem[];
+  data?: {
+    videos?: Array<{
+      id?: string;
+      item_id?: string;
+      item_url?: string;
+      title?: string;
+      cover?: string;
+      duration?: number;
+    }>;
+  };
 }
 
-interface RapidApiSearchPayload {
-  data?: any[];
+interface RapidApiHashtagPayload {
+  data?: {
+    list?: any[];
+    hashtags?: any[];
+    hashtag_list?: any[];
+    trend_list?: any[];
+    items?: any[];
+  };
+}
+
+interface RapidApiSongPayload {
+  data?: {
+    sound_list?: any[];
+    list?: any[];
+    items?: any[];
+  };
+}
+
+interface RapidApiTopProductsPayload {
+  data?: {
+    list?: TopProductItem[];
+  };
 }
 
 export class TikTokCollectorService {
   private rapidApiKey = process.env.RAPIDAPI_KEY;
   private rapidApiHost = process.env.RAPIDAPI_HOST;
-  private rapidApiBaseUrl = process.env.RAPIDAPI_BASE_URL || 'https://tiktok-trend-analysis-api.p.rapidapi.com';
+  private rapidApiBaseUrl = process.env.RAPIDAPI_BASE_URL || 'https://tiktok-api23.p.rapidapi.com';
   private rapidApiRegion = process.env.RAPIDAPI_REGION || 'US';
+  private rapidApiHashtagPeriod = Number(process.env.RAPIDAPI_HASHTAG_PERIOD || 7);
+  private rapidApiVideoPeriod = Number(process.env.RAPIDAPI_VIDEO_PERIOD || 30);
+  private rapidApiSongPeriod = Number(process.env.RAPIDAPI_SONG_PERIOD || 7);
+  private rapidApiProductLastDays = Number(process.env.RAPIDAPI_PRODUCT_LAST_DAYS || 7);
 
   async fetchTrends(limit = 20): Promise<HashtagTrendItem[]> {
     const sourceUrl = process.env.TIKTOK_TRENDS_URL;
@@ -96,6 +154,30 @@ export class TikTokCollectorService {
       }
     }
 
+    const rapidTrends = await this.fetchTrendingHashtagsFromRapidApi(limit);
+    if (rapidTrends.length) {
+      return rapidTrends
+        .map((item) => {
+          const hashtag = item?.hashtag || item?.name || item?.challenge?.title || item?.title;
+          if (!hashtag) return null;
+
+          const views = Number(item?.views ?? item?.view_count ?? item?.stats?.view ?? 0);
+          const likes = Number(item?.likes ?? item?.like_count ?? item?.stats?.like ?? 0);
+          const comments = Number(item?.comments ?? item?.comment_count ?? item?.stats?.comment ?? 0);
+          const shares = Number(item?.shares ?? item?.share_count ?? item?.stats?.share ?? 0);
+
+          return {
+            hashtag: String(hashtag).replace(/^#/, ''),
+            views: Number.isFinite(views) ? views : 0,
+            likes: Number.isFinite(likes) ? likes : 0,
+            comments: Number.isFinite(comments) ? comments : 0,
+            shares: Number.isFinite(shares) ? shares : 0,
+          } as HashtagTrendItem;
+        })
+        .filter((item): item is HashtagTrendItem => Boolean(item))
+        .slice(0, limit);
+    }
+
     logger.warn('⚠️ Nenhuma fonte real de trends configurada');
     return [];
   }
@@ -105,7 +187,7 @@ export class TikTokCollectorService {
       return [];
     }
 
-    const url = `${this.rapidApiBaseUrl}/api/trending?count=${limit}&region=${this.rapidApiRegion}`;
+    const url = `${this.rapidApiBaseUrl}/api/trending/video?page=1&limit=${limit}&period=${this.rapidApiVideoPeriod}&order_by=vv&country=${this.rapidApiRegion}`;
 
     try {
       const response = await fetch(url, {
@@ -120,9 +202,49 @@ export class TikTokCollectorService {
       }
 
       const payload = (await response.json()) as RapidApiTrendingPayload;
-      return payload.data || [];
+      const list = payload.data?.videos || [];
+
+      return list.map((item) => ({
+        id: item.id || item.item_id || '',
+        desc: item.title || '',
+        video: {
+          id: item.item_id || item.id,
+          cover: item.cover,
+          playAddr: item.item_url,
+          duration: item.duration,
+        },
+      }));
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar vídeos em alta via RapidAPI', { error });
+      return [];
+    }
+  }
+
+  async fetchTopProducts(limit = 20): Promise<TopProductItem[]> {
+    if (!this.rapidApiKey || !this.rapidApiHost) {
+      return [];
+    }
+
+    const url = `${this.rapidApiBaseUrl}/api/trending/top-products?page=1&last=${this.rapidApiProductLastDays}&order_by=post&country_code=${this.rapidApiRegion}`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'x-rapidapi-host': this.rapidApiHost,
+          'x-rapidapi-key': this.rapidApiKey,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = (await response.json()) as RapidApiTopProductsPayload;
+      const list = payload.data?.list || [];
+
+      return list.slice(0, limit);
+    } catch (error) {
+      logger.warn('⚠️ Falha ao buscar top produtos via RapidAPI', { error });
       return [];
     }
   }
@@ -171,14 +293,14 @@ export class TikTokCollectorService {
     }
 
     const [hashtags, sounds] = await Promise.all([
-      this.fetchRapidSearch('hashtag', limit),
-      this.fetchRapidSearch('music', limit),
+      this.fetchTrendingHashtagsFromRapidApi(limit),
+      this.fetchTrendingSongsFromRapidApi(limit),
     ]);
 
     const normalized: TrendSignalItem[] = [];
 
     for (const item of hashtags) {
-      const name = item?.name || item?.challenge?.title || item?.challenge?.name;
+      const name = item?.hashtag || item?.name || item?.challenge?.title || item?.title;
       if (!name) continue;
       normalized.push({
         type: 'HASHTAG',
@@ -191,7 +313,7 @@ export class TikTokCollectorService {
     }
 
     for (const item of sounds) {
-      const title = item?.title || item?.music?.title || item?.sound?.title;
+      const title = item?.title || item?.music?.title || item?.sound?.title || item?.song?.title;
       if (!title) continue;
       normalized.push({
         type: 'SOUND',
@@ -206,8 +328,12 @@ export class TikTokCollectorService {
     return normalized.slice(0, limit);
   }
 
-  private async fetchRapidSearch(type: 'hashtag' | 'music', limit: number): Promise<any[]> {
-    const url = `${this.rapidApiBaseUrl}/api/search?query=trend&type=${type}&count=${limit}&region=${this.rapidApiRegion}`;
+  private async fetchTrendingHashtagsFromRapidApi(limit: number): Promise<any[]> {
+    if (!this.rapidApiKey || !this.rapidApiHost) {
+      return [];
+    }
+
+    const url = `${this.rapidApiBaseUrl}/api/trending/hashtag?page=1&limit=${limit}&period=${this.rapidApiHashtagPeriod}&country=${this.rapidApiRegion}&sort_by=popular`;
 
     try {
       const response = await fetch(url, {
@@ -221,10 +347,39 @@ export class TikTokCollectorService {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const payload = (await response.json()) as RapidApiSearchPayload;
-      return payload.data || [];
+      const payload = (await response.json()) as RapidApiHashtagPayload;
+      const data = payload.data || {};
+      return data.list || data.hashtags || data.hashtag_list || data.trend_list || data.items || [];
     } catch (error) {
-      logger.warn('⚠️ Falha ao buscar search RapidAPI', { error, type });
+      logger.warn('⚠️ Falha ao buscar hashtags em alta via RapidAPI', { error });
+      return [];
+    }
+  }
+
+  private async fetchTrendingSongsFromRapidApi(limit: number): Promise<any[]> {
+    if (!this.rapidApiKey || !this.rapidApiHost) {
+      return [];
+    }
+
+    const url = `${this.rapidApiBaseUrl}/api/trending/song?page=1&limit=${limit}&period=${this.rapidApiSongPeriod}&country=${this.rapidApiRegion}&rank_type=popular&new_on_board=false&commercial_music=false`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'x-rapidapi-host': this.rapidApiHost,
+          'x-rapidapi-key': this.rapidApiKey,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = (await response.json()) as RapidApiSongPayload;
+      const data = payload.data || {};
+      return data.sound_list || data.list || data.items || [];
+    } catch (error) {
+      logger.warn('⚠️ Falha ao buscar músicas em alta via RapidAPI', { error });
       return [];
     }
   }
