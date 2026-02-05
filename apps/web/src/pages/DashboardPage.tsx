@@ -68,10 +68,7 @@ export function DashboardPage() {
   const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [telegramIdentifier, setTelegramIdentifier] = useState('');
-  const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [telegramMessage, setTelegramMessage] = useState('');
-  const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
@@ -89,13 +86,6 @@ export function DashboardPage() {
         api.getUserNiches(),
         api.getOverview(),
       ]);
-      try {
-        const telegramConfig = await api.getTelegramConfig();
-        setTelegramEnabled(Boolean(telegramConfig.enabled));
-        setTelegramIdentifier(telegramConfig.telegramChatId || '');
-      } catch {
-        // ignore telegram config errors
-      }
       setAllNiches(niches);
       setUserNiches(myNiches);
       setProducts(overview.products || []);
@@ -135,18 +125,6 @@ export function DashboardPage() {
     navigate('/');
   }
 
-  async function handleTelegramPlay() {
-    setTelegramMessage('Conectando Telegram...');
-    try {
-      const data = await api.connectTelegram(telegramIdentifier);
-      setTelegramEnabled(Boolean(data.enabled));
-      setTelegramIdentifier(data.telegramChatId || telegramIdentifier);
-      setTelegramMessage('Telegram conectado.');
-    } catch (err) {
-      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao conectar Telegram.');
-    }
-  }
-
   async function handleJoinTelegramChannel() {
     setInviteLoading(true);
     setTelegramMessage('Gerando convite...');
@@ -158,23 +136,6 @@ export function DashboardPage() {
       setTelegramMessage(err instanceof Error ? err.message : 'Falha ao gerar convite.');
     } finally {
       setInviteLoading(false);
-    }
-  }
-
-  function handleAlertsPlay() {
-    setAlertsEnabled(true);
-    setTelegramMessage('Alertas liberados.');
-  }
-
-  async function handleTelegramStop() {
-    setTelegramMessage('Desativando Telegram...');
-    try {
-      const data = await api.disableTelegram();
-      setTelegramEnabled(Boolean(data.enabled));
-      setAlertsEnabled(false);
-      setTelegramMessage('Telegram desativado.');
-    } catch (err) {
-      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao desativar Telegram.');
     }
   }
 
@@ -252,8 +213,8 @@ export function DashboardPage() {
         </div>
         <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
           <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: telegramEnabled ? '#38bdf8' : '#94a3b8' }}>
-            {telegramEnabled ? 'Conectado' : 'Pendente'}
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#38bdf8' }}>
+            Canal privado
           </div>
         </div>
       </section>
@@ -338,56 +299,20 @@ export function DashboardPage() {
           </p>
         )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            placeholder="Seu @username ou chat_id (privado opcional)"
-            value={telegramIdentifier}
-            onChange={(e) => setTelegramIdentifier(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}
-          />
           <button
-            onClick={handleTelegramPlay}
-            disabled={!telegramIdentifier || telegramEnabled}
+            onClick={handleJoinTelegramChannel}
+            disabled={inviteLoading}
             style={{
               padding: '8px 16px',
               borderRadius: 999,
               border: '1px solid #cbd5e1',
-              background: telegramEnabled ? '#e2e8f0' : '#22c55e',
-              color: telegramEnabled ? '#64748b' : '#0b1220',
-              cursor: telegramEnabled ? 'not-allowed' : 'pointer',
+              background: inviteLoading ? '#e2e8f0' : '#22c55e',
+              color: inviteLoading ? '#64748b' : '#0b1220',
+              cursor: inviteLoading ? 'not-allowed' : 'pointer',
               fontWeight: 600,
             }}
           >
-            ✅ Conectar privado
-          </button>
-          <button
-            onClick={handleAlertsPlay}
-            disabled={alertsEnabled}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid #cbd5e1',
-              background: alertsEnabled ? '#e2e8f0' : '#22c55e',
-              color: alertsEnabled ? '#64748b' : '#0b1220',
-              cursor: alertsEnabled ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            ▶ Play
-          </button>
-          <button
-            onClick={handleTelegramStop}
-            disabled={!telegramEnabled}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid #cbd5e1',
-              background: !telegramEnabled ? '#e2e8f0' : '#ef4444',
-              color: !telegramEnabled ? '#64748b' : '#fff',
-              cursor: !telegramEnabled ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            ⏹ Stop
+            🔗 Conectar ao Telegram
           </button>
           {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
         </div>

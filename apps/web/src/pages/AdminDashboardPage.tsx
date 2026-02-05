@@ -95,8 +95,8 @@ export function AdminDashboardPage() {
   }
 
   async function toggleAutoCollector(action: 'start' | 'stop') {
-    if (action === 'start' && !telegramEnabled) {
-      setActionMessage('Conecte o Telegram antes de iniciar.');
+    if (!adminToken) {
+      setActionMessage('ADMIN token não configurado.');
       return;
     }
 
@@ -106,15 +106,15 @@ export function AdminDashboardPage() {
         method: 'POST',
         headers,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || 'Falha ao atualizar coletor automático.');
+        throw new Error(data.error || data.message || `Falha ao atualizar coletor automático (${res.status})`);
       }
       setAutoCollectorRunning(Boolean(data.running));
       setActionMessage(data.running ? 'Coleta automática ativa.' : 'Coleta automática pausada.');
       await loadOverview();
     } catch (err) {
-      setActionMessage('Falha ao atualizar coletor automático.');
+      setActionMessage(err instanceof Error ? err.message : 'Falha ao atualizar coletor automático.');
     }
   }
 
