@@ -116,6 +116,7 @@ export function AdminDashboardPage() {
       const resetRes = await fetch(`${apiUrl}/admin/reset-data`, {
         method: 'POST',
         headers,
+        body: JSON.stringify({}),
       });
       if (!resetRes.ok) {
         const payload = await resetRes.json().catch(() => ({}));
