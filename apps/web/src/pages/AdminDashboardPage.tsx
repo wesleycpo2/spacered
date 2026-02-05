@@ -319,11 +319,11 @@ export function AdminDashboardPage() {
         </section>
 
         <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-          <h2 style={{ marginTop: 0 }}>Telegram (Cliente)</h2>
+          <h2 style={{ marginTop: 0 }}>Telegram (Broadcast)</h2>
           <ol style={{ marginTop: 0, color: '#475569', paddingLeft: 18 }}>
-            <li>O cliente precisa enviar <strong>/start</strong> para o bot.</li>
-            <li>Preencha o email do cliente e o @username.</li>
-            <li>Clique em <strong>Verificar</strong>. Se validar, o Play é liberado.</li>
+            <li>Adicione o bot como admin no canal público.</li>
+            <li>Os clientes apenas entram no canal para receber os alertas.</li>
+            <li>O formulário abaixo é opcional para mensagens privadas (premium).</li>
           </ol>
           {telegramBotUsername && (
             <p style={{ marginTop: 0 }}>
@@ -332,13 +332,13 @@ export function AdminDashboardPage() {
           )}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <input
-              placeholder="Telefone ou email do cliente"
+              placeholder="Telefone ou email do cliente (opcional)"
               value={telegramUserIdentifier}
               onChange={(e) => setTelegramUserIdentifier(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
             />
             <input
-              placeholder="@username ou chat_id"
+              placeholder="@username ou chat_id (privado)"
               value={telegramIdentifier}
               onChange={(e) => setTelegramIdentifier(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 220 }}
@@ -356,7 +356,7 @@ export function AdminDashboardPage() {
                 fontWeight: 600,
               }}
             >
-              ✅ Verificar
+              ✅ Conectar privado
             </button>
             <button
               onClick={disableTelegram}

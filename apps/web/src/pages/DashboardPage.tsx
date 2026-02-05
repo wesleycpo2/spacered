@@ -147,7 +147,6 @@ export function DashboardPage() {
   }
 
   function handleAlertsPlay() {
-    if (!telegramEnabled) return;
     setAlertsEnabled(true);
     setTelegramMessage('Alertas liberados.');
   }
@@ -300,7 +299,7 @@ export function DashboardPage() {
       <section style={{ marginBottom: 24, padding: 20, border: '1px solid #e2e8f0', borderRadius: 14, background: 'white' }}>
         <h2>Telegram</h2>
         <p style={{ marginTop: 0, color: '#475569' }}>
-          Envie <strong>/start</strong> para o bot, depois informe seu @username e clique em <strong>Verificar</strong>.
+          Os alertas gerais são enviados no canal público. Para receber mensagens privadas, conecte seu @username (opcional).
         </p>
         {telegramBotUsername && (
           <p style={{ marginTop: 0 }}>
@@ -309,7 +308,7 @@ export function DashboardPage() {
         )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
-            placeholder="Seu @username ou chat_id"
+            placeholder="Seu @username ou chat_id (privado)"
             value={telegramIdentifier}
             onChange={(e) => setTelegramIdentifier(e.target.value)}
             style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}
@@ -327,18 +326,18 @@ export function DashboardPage() {
               fontWeight: 600,
             }}
           >
-            ✅ Verificar
+            ✅ Conectar privado
           </button>
           <button
             onClick={handleAlertsPlay}
-            disabled={!telegramEnabled || alertsEnabled}
+            disabled={alertsEnabled}
             style={{
               padding: '8px 16px',
               borderRadius: 999,
               border: '1px solid #cbd5e1',
-              background: !telegramEnabled || alertsEnabled ? '#e2e8f0' : '#22c55e',
-              color: !telegramEnabled || alertsEnabled ? '#64748b' : '#0b1220',
-              cursor: !telegramEnabled || alertsEnabled ? 'not-allowed' : 'pointer',
+              background: alertsEnabled ? '#e2e8f0' : '#22c55e',
+              color: alertsEnabled ? '#64748b' : '#0b1220',
+              cursor: alertsEnabled ? 'not-allowed' : 'pointer',
               fontWeight: 600,
             }}
           >

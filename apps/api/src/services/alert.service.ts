@@ -111,18 +111,20 @@ export class AlertService {
 
     // Filtra usuários elegíveis
     const eligible = users.filter((user) => {
-      if (!user.subscription || !user.notificationConfig) return false;
+      if (!user.subscription) return false;
 
       const { subscription, notificationConfig } = user;
-
-      // Verifica horário silencioso
-      if (this.isQuietHours(notificationConfig)) {
-        return false;
-      }
 
       // REGRA: BASIC recebe alertas gerais (todos os produtos)
       if (subscription.planType === 'BASE') {
         return true;
+      }
+
+      // PREMIUM precisa de config e respeita horários silenciosos
+      if (!notificationConfig) return false;
+
+      if (this.isQuietHours(notificationConfig)) {
+        return false;
       }
 
       // REGRA: PREMIUM recebe apenas dos nichos escolhidos
@@ -145,7 +147,7 @@ export class AlertService {
     product: ProductData,
     nicheName: string
   ): Promise<string> {
-    const config = user.notificationConfig!;
+    const config = user.notificationConfig || null;
     const subscription = user.subscription!;
 
     // Define canal preferencial
@@ -192,11 +194,11 @@ export class AlertService {
     }
 
     // PREMIUM: verifica preferências
-    if (config.whatsappEnabled && config.whatsappNumber) {
+    if (config?.whatsappEnabled && config.whatsappNumber) {
       return 'WHATSAPP';
     }
 
-    if (config.telegramEnabled && config.telegramChatId) {
+    if (config?.telegramEnabled && config.telegramChatId) {
       return 'TELEGRAM';
     }
 

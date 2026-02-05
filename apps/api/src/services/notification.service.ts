@@ -107,7 +107,39 @@ export class NotificationService {
     let sent = 0;
     let failed = 0;
 
+    const broadcastGroups = new Map<string, NotificationPayload[]>();
+    const directPayloads: NotificationPayload[] = [];
+
     for (const payload of payloads) {
+      if (payload.channel === 'TELEGRAM' && !payload.chatId) {
+        const key = payload.message;
+        const group = broadcastGroups.get(key) || [];
+        group.push(payload);
+        broadcastGroups.set(key, group);
+      } else {
+        directPayloads.push(payload);
+      }
+    }
+
+    for (const [message, group] of broadcastGroups.entries()) {
+      try {
+        const success = await this.telegramAdapter.sendToPublicChannel(message);
+        if (success) {
+          await this.markManyAsSent(group.map((item) => item.alertId));
+          sent += group.length;
+        } else {
+          await this.markManyAsFailed(group.map((item) => item.alertId), 'Falha no envio');
+          failed += group.length;
+        }
+      } catch (error: any) {
+        await this.markManyAsFailed(group.map((item) => item.alertId), error?.message || 'Falha no envio');
+        failed += group.length;
+      }
+
+      await this.delay(200);
+    }
+
+    for (const payload of directPayloads) {
       const success = await this.send(payload);
       if (success) {
         sent++;
@@ -143,6 +175,29 @@ export class NotificationService {
   private async markAsFailed(alertId: string, reason: string): Promise<void> {
     await prisma.alert.update({
       where: { id: alertId },
+      data: {
+        status: 'FAILED',
+        errorMessage: reason,
+        retryCount: { increment: 1 },
+      },
+    });
+  }
+
+  private async markManyAsSent(alertIds: string[]): Promise<void> {
+    if (alertIds.length === 0) return;
+    await prisma.alert.updateMany({
+      where: { id: { in: alertIds } },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+      },
+    });
+  }
+
+  private async markManyAsFailed(alertIds: string[], reason: string): Promise<void> {
+    if (alertIds.length === 0) return;
+    await prisma.alert.updateMany({
+      where: { id: { in: alertIds } },
       data: {
         status: 'FAILED',
         errorMessage: reason,
