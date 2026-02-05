@@ -72,6 +72,7 @@ export function DashboardPage() {
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [telegramMessage, setTelegramMessage] = useState('');
   const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
@@ -143,6 +144,20 @@ export function DashboardPage() {
       setTelegramMessage('Telegram conectado.');
     } catch (err) {
       setTelegramMessage(err instanceof Error ? err.message : 'Falha ao conectar Telegram.');
+    }
+  }
+
+  async function handleJoinTelegramChannel() {
+    setInviteLoading(true);
+    setTelegramMessage('Gerando convite...');
+    try {
+      const { inviteLink } = await api.getTelegramInvite();
+      window.open(inviteLink, '_blank', 'noopener');
+      setTelegramMessage('Convite gerado. Use o link para entrar no canal.');
+    } catch (err) {
+      setTelegramMessage(err instanceof Error ? err.message : 'Falha ao gerar convite.');
+    } finally {
+      setInviteLoading(false);
     }
   }
 
@@ -299,8 +314,24 @@ export function DashboardPage() {
       <section style={{ marginBottom: 24, padding: 20, border: '1px solid #e2e8f0', borderRadius: 14, background: 'white' }}>
         <h2>Telegram</h2>
         <p style={{ marginTop: 0, color: '#475569' }}>
-          Os alertas gerais são enviados no canal público. Para receber mensagens privadas, conecte seu @username (opcional).
+          Os alertas são enviados no canal privado. Use o botão abaixo para entrar no canal.
         </p>
+        <button
+          onClick={handleJoinTelegramChannel}
+          disabled={inviteLoading}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 999,
+            border: '1px solid #cbd5e1',
+            background: inviteLoading ? '#e2e8f0' : '#22c55e',
+            color: inviteLoading ? '#64748b' : '#0b1220',
+            cursor: inviteLoading ? 'not-allowed' : 'pointer',
+            fontWeight: 600,
+            marginBottom: 8,
+          }}
+        >
+          🔗 Entrar no canal
+        </button>
         {telegramBotUsername && (
           <p style={{ marginTop: 0 }}>
             Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
@@ -308,7 +339,7 @@ export function DashboardPage() {
         )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
-            placeholder="Seu @username ou chat_id (privado)"
+            placeholder="Seu @username ou chat_id (privado opcional)"
             value={telegramIdentifier}
             onChange={(e) => setTelegramIdentifier(e.target.value)}
             style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}

@@ -258,6 +258,14 @@ class ApiService {
     return response.data;
   }
 
+  async getTelegramInvite(): Promise<{ inviteLink: string }> {
+    const response = await this.request<{ success: boolean; data: { inviteLink: string } }>(
+      '/me/telegram/invite',
+      { method: 'POST' }
+    );
+    return response.data;
+  }
+
   async disableTelegram(): Promise<TelegramConfig> {
     const response = await this.request<{ success: boolean; data: TelegramConfig }>('/me/telegram/disable', {
       method: 'POST',

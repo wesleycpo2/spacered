@@ -106,6 +106,73 @@ export async function telegramRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /me/telegram/invite
+  fastify.post(
+    '/me/telegram/invite',
+    {
+      onRequest: [requireAuth],
+    },
+    async (request, reply) => {
+      const userId = request.user!.userId;
+
+      try {
+        const adapter = new TelegramAdapter();
+        const inviteLink = await adapter.createChannelInviteLink({
+          memberLimit: 1,
+          expireSeconds: 15 * 60,
+          name: `user-${userId}`,
+        });
+
+        return reply.send({
+          success: true,
+          data: {
+            inviteLink,
+          },
+        });
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          message: error?.message || 'Falha ao gerar convite do Telegram.',
+        });
+      }
+    }
+  );
+
+  // POST /telegram/webhook
+  fastify.post('/telegram/webhook', async (request, reply) => {
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    const header = request.headers['x-telegram-bot-api-secret-token'] as string | undefined;
+    if (secret && header !== secret) {
+      return reply.status(401).send({ ok: false });
+    }
+
+    const update = request.body as any;
+    const channelId = process.env.TELEGRAM_CHANNEL_ID;
+
+    if (!channelId) {
+      return reply.send({ ok: true });
+    }
+
+    const memberUpdate = update?.chat_member || update?.my_chat_member;
+    const inviteLink = memberUpdate?.invite_link?.invite_link;
+    const chatId = memberUpdate?.chat?.id;
+    const newStatus = memberUpdate?.new_chat_member?.status;
+    const oldStatus = memberUpdate?.old_chat_member?.status;
+
+    const joined = ['member', 'administrator'].includes(newStatus) && ['left', 'kicked', undefined].includes(oldStatus);
+
+    if (String(chatId) === String(channelId) && joined && inviteLink) {
+      try {
+        const adapter = new TelegramAdapter();
+        await adapter.revokeChannelInviteLink(inviteLink);
+      } catch {
+        // ignore revoke errors
+      }
+    }
+
+    return reply.send({ ok: true });
+  });
+
   // POST /me/telegram/disable
   fastify.post(
     '/me/telegram/disable',

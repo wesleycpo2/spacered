@@ -16,11 +16,13 @@ export interface TelegramMessage {
 export class TelegramAdapter {
   private botToken: string;
   private publicChannelId: string; // Canal público para plano BASIC
+  private channelId?: string; // Canal privado de assinantes
   private provider: 'mock' | 'bot-api';
 
   constructor() {
     this.botToken = process.env.TELEGRAM_BOT_TOKEN || 'mock-bot-token';
     this.publicChannelId = process.env.TELEGRAM_PUBLIC_CHANNEL || 'mock-public-channel';
+    this.channelId = process.env.TELEGRAM_CHANNEL_ID;
     this.provider = (process.env.TELEGRAM_PROVIDER || 'bot-api').toLowerCase() === 'mock' ? 'mock' : 'bot-api';
   }
 
@@ -214,6 +216,72 @@ ${product.thumbnail ? `🖼️ <a href="${product.thumbnail}">Print do vídeo</a
 
     const data = await response.json();
     return Array.isArray(data.result) ? data.result : [];
+  }
+
+  async createChannelInviteLink(params: {
+    memberLimit?: number;
+    expireSeconds?: number;
+    name?: string;
+  }): Promise<string> {
+    if (!this.botToken || this.botToken === 'mock-bot-token') {
+      throw new Error('TELEGRAM_BOT_TOKEN ausente');
+    }
+
+    if (!this.channelId) {
+      throw new Error('TELEGRAM_CHANNEL_ID ausente');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const expireDate = params.expireSeconds ? now + params.expireSeconds : undefined;
+
+    const payload = {
+      chat_id: this.channelId,
+      member_limit: params.memberLimit || 1,
+      expire_date: expireDate,
+      name: params.name,
+    };
+
+    const url = `https://api.telegram.org/bot${this.botToken}/createChatInviteLink`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Telegram API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const inviteLink = data?.result?.invite_link;
+    if (!inviteLink) {
+      throw new Error('Falha ao gerar invite_link');
+    }
+
+    return inviteLink;
+  }
+
+  async revokeChannelInviteLink(inviteLink: string): Promise<void> {
+    if (!this.botToken || this.botToken === 'mock-bot-token') {
+      throw new Error('TELEGRAM_BOT_TOKEN ausente');
+    }
+
+    if (!this.channelId) {
+      throw new Error('TELEGRAM_CHANNEL_ID ausente');
+    }
+
+    const url = `https://api.telegram.org/bot${this.botToken}/revokeChatInviteLink`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: this.channelId, invite_link: inviteLink }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Telegram API error: ${response.status} ${errorText}`);
+    }
   }
 
   private async getChatIdByUsername(username: string): Promise<string | null> {
