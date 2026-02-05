@@ -107,6 +107,10 @@ export function AdminDashboardPage() {
   }
 
   async function resetDataAndCollect() {
+    if (!adminToken) {
+      setActionMessage('ADMIN token não configurado.');
+      return;
+    }
     setActionMessage('Limpando dados antigos...');
     try {
       const resetRes = await fetch(`${apiUrl}/admin/reset-data`, {
@@ -114,7 +118,8 @@ export function AdminDashboardPage() {
         headers,
       });
       if (!resetRes.ok) {
-        throw new Error('Falha ao limpar dados');
+        const payload = await resetRes.json().catch(() => ({}));
+        throw new Error(payload.error || payload.message || `Falha ao limpar dados (${resetRes.status})`);
       }
 
       setActionMessage('Recoletando dados reais...');
@@ -124,13 +129,14 @@ export function AdminDashboardPage() {
         body: JSON.stringify({ limit: 30 }),
       });
       if (!collectRes.ok) {
-        throw new Error('Falha ao coletar dados');
+        const payload = await collectRes.json().catch(() => ({}));
+        throw new Error(payload.error || payload.message || `Falha ao coletar dados (${collectRes.status})`);
       }
 
       await loadOverview();
       setActionMessage('Dados reais carregados.');
     } catch (err) {
-      setActionMessage('Falha ao resetar e coletar.');
+      setActionMessage(err instanceof Error ? err.message : 'Falha ao resetar e coletar.');
     }
   }
 
