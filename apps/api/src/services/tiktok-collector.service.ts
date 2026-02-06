@@ -29,6 +29,7 @@ export interface TrendingVideoItem {
   id: string;
   desc: string;
   createTime?: number;
+  countryCode?: string;
   video?: {
     id?: string;
     cover?: string;
@@ -48,6 +49,7 @@ export interface TrendingVideoItem {
 }
 
 export interface TopProductItem {
+  country_code?: string;
   url_title?: string;
   cover_url?: string | null;
   impression?: number;
@@ -122,6 +124,11 @@ export class TikTokCollectorService {
   private rapidApiHost = process.env.RAPIDAPI_HOST;
   private rapidApiBaseUrl = process.env.RAPIDAPI_BASE_URL || 'https://tiktok-api23.p.rapidapi.com';
   private rapidApiRegion = process.env.RAPIDAPI_REGION || 'US';
+  private rapidApiHashtagCountry = process.env.RAPIDAPI_COUNTRY_HASHTAG || this.rapidApiRegion;
+  private rapidApiVideoCountry = process.env.RAPIDAPI_COUNTRY_VIDEO || this.rapidApiRegion;
+  private rapidApiSongCountry = process.env.RAPIDAPI_COUNTRY_SONG || this.rapidApiRegion;
+  private rapidApiProductCountry = process.env.RAPIDAPI_COUNTRY_PRODUCTS || this.rapidApiRegion;
+  private rapidApiStrictCountry = (process.env.RAPIDAPI_STRICT_COUNTRY || 'true').toLowerCase() === 'true';
   private rapidApiHashtagPeriod = Number(process.env.RAPIDAPI_HASHTAG_PERIOD || 7);
   private rapidApiVideoPeriod = Number(process.env.RAPIDAPI_VIDEO_PERIOD || 30);
   private rapidApiSongPeriod = Number(process.env.RAPIDAPI_SONG_PERIOD || 7);
@@ -187,7 +194,7 @@ export class TikTokCollectorService {
       return [];
     }
 
-    const url = `${this.rapidApiBaseUrl}/api/trending/video?page=1&limit=${limit}&period=${this.rapidApiVideoPeriod}&order_by=vv&country=${this.rapidApiRegion}`;
+    const url = `${this.rapidApiBaseUrl}/api/trending/video?page=1&limit=${limit}&period=${this.rapidApiVideoPeriod}&order_by=vv&country=${this.rapidApiVideoCountry}`;
 
     try {
       const response = await fetch(url, {
@@ -204,9 +211,10 @@ export class TikTokCollectorService {
       const payload = (await response.json()) as RapidApiTrendingPayload;
       const list = payload.data?.videos || [];
 
-      return list.map((item) => ({
+      const mapped = list.map((item) => ({
         id: item.id || item.item_id || '',
         desc: item.title || '',
+        countryCode: (item as any).country_code || (item as any).countryCode,
         video: {
           id: item.item_id || item.id,
           cover: item.cover,
@@ -214,6 +222,15 @@ export class TikTokCollectorService {
           duration: item.duration,
         },
       }));
+
+      if (!this.rapidApiStrictCountry) {
+        return mapped;
+      }
+
+      return mapped.filter((item) => {
+        if (!item.countryCode) return true;
+        return item.countryCode.toUpperCase() === this.rapidApiVideoCountry.toUpperCase();
+      });
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar vídeos em alta via RapidAPI', { error });
       return [];
@@ -225,7 +242,7 @@ export class TikTokCollectorService {
       return [];
     }
 
-    const url = `${this.rapidApiBaseUrl}/api/trending/top-products?page=1&last=${this.rapidApiProductLastDays}&order_by=post&country_code=${this.rapidApiRegion}`;
+    const url = `${this.rapidApiBaseUrl}/api/trending/top-products?page=1&last=${this.rapidApiProductLastDays}&order_by=post&country_code=${this.rapidApiProductCountry}`;
 
     try {
       const response = await fetch(url, {
@@ -242,7 +259,14 @@ export class TikTokCollectorService {
       const payload = (await response.json()) as RapidApiTopProductsPayload;
       const list = payload.data?.list || [];
 
-      return list.slice(0, limit);
+      const filtered = this.rapidApiStrictCountry
+        ? list.filter((item) => {
+            if (!item.country_code) return true;
+            return item.country_code.toUpperCase() === this.rapidApiProductCountry.toUpperCase();
+          })
+        : list;
+
+      return filtered.slice(0, limit);
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar top produtos via RapidAPI', { error });
       return [];
@@ -333,7 +357,7 @@ export class TikTokCollectorService {
       return [];
     }
 
-    const url = `${this.rapidApiBaseUrl}/api/trending/hashtag?page=1&limit=${limit}&period=${this.rapidApiHashtagPeriod}&country=${this.rapidApiRegion}&sort_by=popular`;
+    const url = `${this.rapidApiBaseUrl}/api/trending/hashtag?page=1&limit=${limit}&period=${this.rapidApiHashtagPeriod}&country=${this.rapidApiHashtagCountry}&sort_by=popular`;
 
     try {
       const response = await fetch(url, {
@@ -361,7 +385,7 @@ export class TikTokCollectorService {
       return [];
     }
 
-    const url = `${this.rapidApiBaseUrl}/api/trending/song?page=1&limit=${limit}&period=${this.rapidApiSongPeriod}&country=${this.rapidApiRegion}&rank_type=popular&new_on_board=false&commercial_music=false`;
+    const url = `${this.rapidApiBaseUrl}/api/trending/song?page=1&limit=${limit}&period=${this.rapidApiSongPeriod}&country=${this.rapidApiSongCountry}&rank_type=popular&new_on_board=false&commercial_music=false`;
 
     try {
       const response = await fetch(url, {
