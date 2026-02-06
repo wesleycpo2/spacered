@@ -123,7 +123,7 @@ export class TikTokCollectorService {
   private rapidApiKey = process.env.RAPIDAPI_KEY;
   private rapidApiHost = process.env.RAPIDAPI_HOST;
   private rapidApiBaseUrl = process.env.RAPIDAPI_BASE_URL || 'https://tiktok-api23.p.rapidapi.com';
-  private rapidApiRegion = process.env.RAPIDAPI_REGION || 'US';
+  private rapidApiRegion = process.env.RAPIDAPI_REGION || 'BR';
   private rapidApiHashtagCountry = process.env.RAPIDAPI_COUNTRY_HASHTAG || this.rapidApiRegion;
   private rapidApiVideoCountry = process.env.RAPIDAPI_COUNTRY_VIDEO || this.rapidApiRegion;
   private rapidApiSongCountry = process.env.RAPIDAPI_COUNTRY_SONG || this.rapidApiRegion;
@@ -263,7 +263,7 @@ export class TikTokCollectorService {
       }
 
       return mapped.filter((item) => {
-        if (!item.countryCode) return true;
+        if (!item.countryCode) return false;
         return item.countryCode.toUpperCase() === this.rapidApiVideoCountry.toUpperCase();
       });
     } catch (error) {
@@ -296,7 +296,7 @@ export class TikTokCollectorService {
 
       const filtered = this.rapidApiStrictCountry
         ? list.filter((item) => {
-            if (!item.country_code) return true;
+            if (!item.country_code) return false;
             return item.country_code.toUpperCase() === this.rapidApiProductCountry.toUpperCase();
           })
         : list;
