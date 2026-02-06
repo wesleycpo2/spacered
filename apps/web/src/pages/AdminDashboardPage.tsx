@@ -58,6 +58,7 @@ export function AdminDashboardPage() {
   const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
   const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [telegramMessage, setTelegramMessage] = useState('');
+  const [adminActionMessage, setAdminActionMessage] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
@@ -113,6 +114,53 @@ export function AdminDashboardPage() {
       setTelegramMessage(err instanceof Error ? err.message : 'Falha ao gerar convite.');
     } finally {
       setInviteLoading(false);
+    }
+  }
+
+  async function handleCollectNow() {
+    if (!adminToken) {
+      setAdminActionMessage('ADMIN token não configurado.');
+      return;
+    }
+
+    setAdminActionMessage('Coletando dados...');
+    try {
+      const res = await fetch(`${apiUrl}/admin/collect-all`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ limit: 10 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Falha ao coletar (${res.status})`);
+      }
+      await loadOverview();
+      setAdminActionMessage('Dados coletados.');
+    } catch (err) {
+      setAdminActionMessage(err instanceof Error ? err.message : 'Falha ao coletar.');
+    }
+  }
+
+  async function handleSendAlerts() {
+    if (!adminToken) {
+      setAdminActionMessage('ADMIN token não configurado.');
+      return;
+    }
+
+    setAdminActionMessage('Enviando alertas...');
+    try {
+      const res = await fetch(`${apiUrl}/admin/alerts/run`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Falha ao enviar (${res.status})`);
+      }
+      setAdminActionMessage('Alertas enviados.');
+    } catch (err) {
+      setAdminActionMessage(err instanceof Error ? err.message : 'Falha ao enviar alertas.');
     }
   }
 
@@ -177,6 +225,41 @@ export function AdminDashboardPage() {
         ) : (
           <>
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+              <h2 style={{ marginTop: 0 }}>Ações rápidas</h2>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  onClick={handleCollectNow}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: '1px solid #cbd5e1',
+                    background: '#0f172a',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⛏ Coletar dados
+                </button>
+                <button
+                  onClick={handleSendAlerts}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: '1px solid #cbd5e1',
+                    background: '#22c55e',
+                    color: '#0b1220',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  📣 Enviar alertas
+                </button>
+                {adminActionMessage && <span style={{ color: '#475569' }}>{adminActionMessage}</span>}
+              </div>
+            </section>
+
+            <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
             <h2 style={{ marginTop: 0 }}>Telegram</h2>
             <p style={{ marginTop: 0, color: '#475569' }}>
               Os alertas são enviados no canal privado. Use o botão abaixo para entrar no canal.
