@@ -1,0 +1,25 @@
+-- Add advanced metrics to products
+ALTER TABLE "products"
+  ADD COLUMN "impressions" BIGINT,
+  ADD COLUMN "ctr" DOUBLE PRECISION,
+  ADD COLUMN "cvr" DOUBLE PRECISION,
+  ADD COLUMN "cpa" DOUBLE PRECISION,
+  ADD COLUMN "cost" DOUBLE PRECISION,
+  ADD COLUMN "postCount" INTEGER,
+  ADD COLUMN "postChange" DOUBLE PRECISION,
+  ADD COLUMN "playSixRate" DOUBLE PRECISION,
+  ADD COLUMN "urlTitle" TEXT,
+  ADD COLUMN "ecomCategory1" TEXT,
+  ADD COLUMN "ecomCategory2" TEXT,
+  ADD COLUMN "ecomCategory3" TEXT;
+
+-- Add advanced metrics to trends
+ALTER TABLE "trends"
+  ADD COLUMN "impressions" BIGINT,
+  ADD COLUMN "ctr" DOUBLE PRECISION,
+  ADD COLUMN "cvr" DOUBLE PRECISION,
+  ADD COLUMN "cpa" DOUBLE PRECISION,
+  ADD COLUMN "cost" DOUBLE PRECISION,
+  ADD COLUMN "postCount" INTEGER,
+  ADD COLUMN "postChange" DOUBLE PRECISION,
+  ADD COLUMN "playSixRate" DOUBLE PRECISION;
