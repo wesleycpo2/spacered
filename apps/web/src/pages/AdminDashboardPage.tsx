@@ -164,6 +164,42 @@ export function AdminDashboardPage() {
     }
   }
 
+  async function handleResetAndCollect() {
+    if (!adminToken) {
+      setAdminActionMessage('ADMIN token não configurado.');
+      return;
+    }
+
+    setAdminActionMessage('Limpando dados...');
+    try {
+      const resetRes = await fetch(`${apiUrl}/admin/reset-data`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+      });
+      const resetPayload = await resetRes.json().catch(() => ({}));
+      if (!resetRes.ok) {
+        throw new Error(resetPayload.error || resetPayload.message || `Falha ao limpar (${resetRes.status})`);
+      }
+
+      setAdminActionMessage('Recoletando dados...');
+      const collectRes = await fetch(`${apiUrl}/admin/collect-all`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ limit: 10 }),
+      });
+      const collectPayload = await collectRes.json().catch(() => ({}));
+      if (!collectRes.ok) {
+        throw new Error(collectPayload.error || collectPayload.message || `Falha ao coletar (${collectRes.status})`);
+      }
+
+      await loadOverview();
+      setAdminActionMessage('Dados atualizados.');
+    } catch (err) {
+      setAdminActionMessage(err instanceof Error ? err.message : 'Falha ao resetar e coletar.');
+    }
+  }
+
 
   useEffect(() => {
     if (apiUrl) {
@@ -254,6 +290,20 @@ export function AdminDashboardPage() {
                   }}
                 >
                   📣 Enviar alertas
+                </button>
+                <button
+                  onClick={handleResetAndCollect}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: '1px solid #cbd5e1',
+                    background: '#ef4444',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  ♻ Limpar & Recoletar
                 </button>
                 {adminActionMessage && <span style={{ color: '#475569' }}>{adminActionMessage}</span>}
               </div>
