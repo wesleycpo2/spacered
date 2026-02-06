@@ -11,6 +11,7 @@ import { runHashtagCollector } from '../../jobs/collect-hashtags.job';
 import { runSignalCollector } from '../../jobs/collect-signals.job';
 import { runVideoCollector } from '../../jobs/collect-videos.job';
 import { runProductCollector } from '../../jobs/collect-products.job';
+import { runAlertProcessor } from '../../jobs/alert-processor.job';
 import { isAutoCollectorRunning, startAutoCollector, stopAutoCollector } from '../../jobs/auto-collector.job';
 import { WhatsAppAdapter } from '../../adapters/whatsapp.adapter';
 import { AiAnalyzerService } from '../../services/ai-analyzer.service';
@@ -334,6 +335,21 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({
         error: error?.message || 'Falha ao gerar convite do Telegram.',
       });
+    }
+  });
+
+  // POST /admin/alerts/run
+  fastify.post('/admin/alerts/run', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    try {
+      await runAlertProcessor();
+      return reply.send({ success: true });
+    } catch (error: any) {
+      return reply.status(500).send({ error: error?.message || 'Falha ao processar alertas.' });
     }
   });
 
