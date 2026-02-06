@@ -6,7 +6,9 @@
     "dev": "tsx watch src/main.ts",
     "build": "prisma generate && tsup src",
     "start": "prisma generate && prisma migrate deploy && node dist/main.js",
-    "start:prod": "node dist/main.js"
+    "start:prod": "node dist/main.js",
+    "collect:manual": "tsx src/scripts/manual-collect.ts",
+    "provider:test": "tsx src/scripts/provider-smoke-test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
