@@ -50,12 +50,6 @@ interface TrendSignalItem {
   collectedAt: string;
 }
 
-interface AiReportItem {
-  id: string;
-  summary: string;
-  createdAt: string;
-}
-
 export function DashboardPage() {
   const { user, subscription, logout, refreshSubscription } = useAuth();
   const navigate = useNavigate();
@@ -64,14 +58,10 @@ export function DashboardPage() {
   const [userNiches, setUserNiches] = useState<Niche[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [signals, setSignals] = useState<TrendSignalItem[]>([]);
-  const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
-  const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [telegramMessage, setTelegramMessage] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
-
-  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
 
   useEffect(() => {
     loadData();
@@ -90,8 +80,6 @@ export function DashboardPage() {
       setUserNiches(myNiches);
       setProducts(overview.products || []);
       setSignals(overview.signals || []);
-      setLatestReport(overview.aiReport || null);
-      setAiReports(overview.aiReports || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
     } finally {
@@ -208,10 +196,6 @@ export function DashboardPage() {
           <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
         </div>
         <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-          <div style={{ color: '#94a3b8', fontSize: 12 }}>Relatórios de IA</div>
-          <div style={{ fontSize: 26, fontWeight: 700 }}>{aiReports.length}</div>
-        </div>
-        <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
           <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#38bdf8' }}>
             Canal privado
@@ -277,27 +261,6 @@ export function DashboardPage() {
         <p style={{ marginTop: 0, color: '#475569' }}>
           Os alertas são enviados no canal privado. Use o botão abaixo para entrar no canal.
         </p>
-        <button
-          onClick={handleJoinTelegramChannel}
-          disabled={inviteLoading}
-          style={{
-            padding: '8px 16px',
-            borderRadius: 999,
-            border: '1px solid #cbd5e1',
-            background: inviteLoading ? '#e2e8f0' : '#22c55e',
-            color: inviteLoading ? '#64748b' : '#0b1220',
-            cursor: inviteLoading ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-            marginBottom: 8,
-          }}
-        >
-          🔗 Entrar no canal
-        </button>
-        {telegramBotUsername && (
-          <p style={{ marginTop: 0 }}>
-            Bot: <a href={`https://t.me/${telegramBotUsername.replace('@', '')}`} target="_blank" rel="noreferrer">@{telegramBotUsername.replace('@', '')}</a>
-          </p>
-        )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             onClick={handleJoinTelegramChannel}
@@ -312,101 +275,62 @@ export function DashboardPage() {
               fontWeight: 600,
             }}
           >
-            🔗 Conectar ao Telegram
+            🔗 Entrar no canal
           </button>
           {telegramMessage && <span style={{ color: '#475569' }}>{telegramMessage}</span>}
         </div>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
-          <h2 style={{ marginTop: 0 }}>Relatório IA</h2>
-          {latestReport ? (
-            <>
-              <p style={{ color: '#475569' }}>{latestReport.summary}</p>
-              <p style={{ fontSize: 12, color: '#94a3b8' }}>
-                Última atualização: {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(latestReport.createdAt))}
-              </p>
-            </>
-          ) : (
-            <p style={{ color: '#64748b' }}>Relatório ainda não disponível.</p>
-          )}
-        </div>
-        <div style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
-          <h2 style={{ marginTop: 0 }}>Histórico IA</h2>
-          {aiReports.length === 0 && <p style={{ color: '#64748b' }}>Sem relatórios recentes.</p>}
-          <ul style={{ paddingLeft: 18, margin: 0, color: '#475569' }}>
-            {aiReports.map((report) => (
-              <li key={report.id} style={{ marginBottom: 8 }}>
-                {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(report.createdAt))}
-              </li>
+      <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
+        <h2 style={{ marginTop: 0 }}>Produtos (lista completa)</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Produto</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Score</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Views</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Status</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p.id}>
+                <td style={{ padding: 8 }}>{p.title}</td>
+                <td style={{ padding: 8 }}>{p.viralScore}</td>
+                <td style={{ padding: 8 }}>{Number(p.views).toLocaleString()}</td>
+                <td style={{ padding: 8 }}>{p.status}</td>
+                <td style={{ padding: 8 }}>
+                  <a href={p.tiktokUrl} target="_blank" rel="noreferrer">Abrir</a>
+                </td>
+              </tr>
             ))}
-          </ul>
-        </div>
+          </tbody>
+        </table>
       </section>
 
       <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-        <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          {products.slice(0, 6).map((p) => (
-            <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#64748b' }}>Score</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>{Number(p.views).toLocaleString()} views</div>
-              {p.impressions != null && (
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  Impressões: {Number(p.impressions).toLocaleString()}
-                </div>
-              )}
-              {(p.ctr != null || p.cvr != null || p.cpa != null) && (
-                <div style={{ fontSize: 12, color: '#475569' }}>
-                  CTR: {p.ctr != null ? `${p.ctr.toFixed(2)}%` : 'n/d'} • CVR: {p.cvr != null ? `${p.cvr.toFixed(2)}%` : 'n/d'} • CPA: {p.cpa != null ? p.cpa.toFixed(2) : 'n/d'}
-                </div>
-              )}
-              {(p.postCount != null || p.postChange != null) && (
-                <div style={{ fontSize: 12, color: '#475569' }}>
-                  Posts: {p.postCount ?? 'n/d'} • Δ {p.postChange != null ? `${p.postChange.toFixed(2)}%` : 'n/d'}
-                </div>
-              )}
-              <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6 }}>
-                Cresc. 48h: {p.insights?.growth48h ?? 0}%
-              </div>
-              <div style={{ fontSize: 12, color: '#0f172a' }}>
-                Saturação: {p.insights?.saturationLabel ?? 'n/d'}
-              </div>
-              <div style={{ fontSize: 12, color: '#0f172a' }}>
-                Engajamento: {p.insights?.engagementLabel ?? 'n/d'}
-              </div>
-              <div style={{ fontSize: 12, color: '#0f172a' }}>
-                Probabilidade: {p.insights?.probability ?? 0}%
-              </div>
-              <a href={p.tiktokUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb' }}>
-                Abrir no TikTok
-              </a>
-            </div>
-          ))}
-          {products.length === 0 && <p style={{ color: '#64748b' }}>Nenhum produto carregado ainda.</p>}
-        </div>
-      </section>
-
-      <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-        <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
-          {signals.slice(0, 12).map((signal) => (
-            <div key={signal.id} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#64748b' }}>{signal.type}</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{signal.value}</div>
-              <div style={{ fontSize: 12, color: '#475569' }}>
-                Crescimento: {signal.growthPercent}%
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                {signal.region || 'Global'}
-              </div>
-            </div>
-          ))}
-          {signals.length === 0 && <p style={{ color: '#64748b' }}>Sem sinais recentes.</p>}
-        </div>
+        <h2 style={{ marginTop: 0 }}>Alertas recentes</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Tipo</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Valor</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Crescimento</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Região</th>
+            </tr>
+          </thead>
+          <tbody>
+            {signals.map((s) => (
+              <tr key={s.id}>
+                <td style={{ padding: 8 }}>{s.type}</td>
+                <td style={{ padding: 8 }}>{s.value}</td>
+                <td style={{ padding: 8 }}>{s.growthPercent.toFixed(1)}%</td>
+                <td style={{ padding: 8 }}>{s.region || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       {/* SELEÇÃO DE NICHOS */}

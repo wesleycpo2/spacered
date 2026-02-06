@@ -133,6 +133,26 @@ export class TikTokCollectorService {
   private rapidApiVideoPeriod = Number(process.env.RAPIDAPI_VIDEO_PERIOD || 30);
   private rapidApiSongPeriod = Number(process.env.RAPIDAPI_SONG_PERIOD || 7);
   private rapidApiProductLastDays = Number(process.env.RAPIDAPI_PRODUCT_LAST_DAYS || 7);
+  private rapidApiDebug = (process.env.RAPIDAPI_DEBUG || 'false').toLowerCase() === 'true';
+
+  private logRapidApiSample(params: {
+    endpoint: string;
+    url: string;
+    requestCountry?: string;
+    totalItems: number;
+    sample?: Record<string, unknown> | null;
+  }) {
+    if (!this.rapidApiDebug) return;
+
+    logger.info('RapidAPI sample', {
+      fetchedAt: new Date().toISOString(),
+      endpoint: params.endpoint,
+      requestCountry: params.requestCountry,
+      totalItems: params.totalItems,
+      sample: params.sample || null,
+      url: params.url,
+    });
+  }
 
   async fetchTrends(limit = 20): Promise<HashtagTrendItem[]> {
     const sourceUrl = process.env.TIKTOK_TRENDS_URL;
@@ -223,6 +243,21 @@ export class TikTokCollectorService {
         },
       }));
 
+      this.logRapidApiSample({
+        endpoint: 'trending/video',
+        url,
+        requestCountry: this.rapidApiVideoCountry,
+        totalItems: list.length,
+        sample: list[0]
+          ? {
+              id: list[0]?.id || list[0]?.item_id,
+              title: list[0]?.title,
+              country_code: (list[0] as any)?.country_code || (list[0] as any)?.countryCode,
+              createTime: (list[0] as any)?.createTime,
+            }
+          : null,
+      });
+
       if (!this.rapidApiStrictCountry) {
         return mapped;
       }
@@ -265,6 +300,21 @@ export class TikTokCollectorService {
             return item.country_code.toUpperCase() === this.rapidApiProductCountry.toUpperCase();
           })
         : list;
+
+      this.logRapidApiSample({
+        endpoint: 'trending/top-products',
+        url,
+        requestCountry: this.rapidApiProductCountry,
+        totalItems: list.length,
+        sample: list[0]
+          ? {
+              country_code: list[0]?.country_code,
+              url_title: list[0]?.url_title,
+              impression: list[0]?.impression,
+              post: list[0]?.post,
+            }
+          : null,
+      });
 
       return filtered.slice(0, limit);
     } catch (error) {
@@ -373,7 +423,22 @@ export class TikTokCollectorService {
 
       const payload = (await response.json()) as RapidApiHashtagPayload;
       const data = payload.data || {};
-      return data.list || data.hashtags || data.hashtag_list || data.trend_list || data.items || [];
+      const list = data.list || data.hashtags || data.hashtag_list || data.trend_list || data.items || [];
+
+      this.logRapidApiSample({
+        endpoint: 'trending/hashtag',
+        url,
+        requestCountry: this.rapidApiHashtagCountry,
+        totalItems: list.length,
+        sample: list[0]
+          ? {
+              name: list[0]?.hashtag || list[0]?.name || list[0]?.challenge?.title || list[0]?.title,
+              views: list[0]?.views || list[0]?.view_count || list[0]?.stats?.view,
+            }
+          : null,
+      });
+
+      return list;
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar hashtags em alta via RapidAPI', { error });
       return [];
@@ -401,7 +466,22 @@ export class TikTokCollectorService {
 
       const payload = (await response.json()) as RapidApiSongPayload;
       const data = payload.data || {};
-      return data.sound_list || data.list || data.items || [];
+      const list = data.sound_list || data.list || data.items || [];
+
+      this.logRapidApiSample({
+        endpoint: 'trending/song',
+        url,
+        requestCountry: this.rapidApiSongCountry,
+        totalItems: list.length,
+        sample: list[0]
+          ? {
+              title: list[0]?.title || list[0]?.music?.title || list[0]?.sound?.title || list[0]?.song?.title,
+              playCount: list[0]?.stats?.play_count || list[0]?.stats?.playCount,
+            }
+          : null,
+      });
+
+      return list;
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar músicas em alta via RapidAPI', { error });
       return [];

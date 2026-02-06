@@ -45,18 +45,10 @@ interface TrendSignalItem {
   collectedAt: string;
 }
 
-interface AiReportItem {
-  id: string;
-  summary: string;
-  createdAt: string;
-}
-
 export function AdminDashboardPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [signals, setSignals] = useState<TrendSignalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [latestReport, setLatestReport] = useState<AiReportItem | null>(null);
-  const [aiReports, setAiReports] = useState<AiReportItem[]>([]);
   const [telegramMessage, setTelegramMessage] = useState('');
   const [adminActionMessage, setAdminActionMessage] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -77,8 +69,6 @@ export function AdminDashboardPage() {
       const data = await res.json();
       setProducts(data.products || []);
       setSignals(data.signals || []);
-      setLatestReport(data.aiReport || null);
-      setAiReports(data.aiReports || []);
     } catch (err) {
       setTelegramMessage('Erro ao carregar overview.');
     } finally {
@@ -195,14 +185,6 @@ export function AdminDashboardPage() {
     }
   }, [apiUrl]);
 
-  const topSignals = signals.slice(0, 6);
-  const topProducts = products.slice(0, 6);
-  const formattedLatest = latestReport?.createdAt
-    ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(latestReport.createdAt)
-      )
-    : null;
-
   return (
     <div
       style={{
@@ -232,10 +214,6 @@ export function AdminDashboardPage() {
           <div style={{ background: '#111827', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1f2937' }}>
             <div style={{ color: '#94a3b8', fontSize: 12 }}>Sinais recentes</div>
             <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
-          </div>
-          <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-            <div style={{ color: '#94a3b8', fontSize: 12 }}>Relatórios de IA</div>
-            <div style={{ fontSize: 26, fontWeight: 700 }}>{aiReports.length}</div>
           </div>
           <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
             <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
@@ -322,44 +300,7 @@ export function AdminDashboardPage() {
             </div>
           </section>
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-            <h2 style={{ marginTop: 0 }}>Produtos em alta</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
-              {topProducts.map((p) => (
-                <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>Score</div>
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>{p.viralScore}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>{p.title}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{Number(p.views).toLocaleString()} views</div>
-                  {p.impressions != null && (
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      Impressões: {Number(p.impressions).toLocaleString()}
-                    </div>
-                  )}
-                  {(p.ctr != null || p.cvr != null || p.cpa != null) && (
-                    <div style={{ fontSize: 12, color: '#475569' }}>
-                      CTR: {p.ctr != null ? `${p.ctr.toFixed(2)}%` : 'n/d'} • CVR: {p.cvr != null ? `${p.cvr.toFixed(2)}%` : 'n/d'} • CPA: {p.cpa != null ? p.cpa.toFixed(2) : 'n/d'}
-                    </div>
-                  )}
-                  {(p.postCount != null || p.postChange != null) && (
-                    <div style={{ fontSize: 12, color: '#475569' }}>
-                      Posts: {p.postCount ?? 'n/d'} • Δ {p.postChange != null ? `${p.postChange.toFixed(2)}%` : 'n/d'}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6 }}>
-                    Cresc. 48h: {p.insights?.growth48h ?? 0}%
-                  </div>
-                  <div style={{ fontSize: 12, color: '#0f172a' }}>
-                    Saturação: {p.insights?.saturationLabel ?? 'n/d'}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#0f172a' }}>
-                    Engajamento: {p.insights?.engagementLabel ?? 'n/d'}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#0f172a' }}>
-                    Probabilidade: {p.insights?.probability ?? 0}%
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h2 style={{ marginTop: 0 }}>Produtos (lista completa)</h2>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -385,69 +326,8 @@ export function AdminDashboardPage() {
           </tbody>
         </table>
           </section>
-          {latestReport && (
-            <section style={{ background: '#0b1220', color: 'white', borderRadius: 12, padding: 16, marginBottom: 18 }}>
-              <h2 style={{ marginTop: 0 }}>Resumo da IA</h2>
-              {formattedLatest && (
-                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                  Última atualização: {formattedLatest}
-                </div>
-              )}
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, color: '#e2e8f0' }}>
-                {latestReport.summary || 'Sem resumo.'}
-              </pre>
-            </section>
-          )}
-          {aiReports.length > 0 && (
-            <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-              <h2 style={{ marginTop: 0 }}>Histórico da IA</h2>
-              <div style={{ display: 'grid', gap: 12 }}>
-                {aiReports.map((report) => (
-                  <div key={report.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
-                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
-                      {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-                        new Date(report.createdAt)
-                      )}
-                    </div>
-                    <div style={{ fontSize: 14, color: '#0f172a', whiteSpace: 'pre-wrap' }}>{report.summary}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          <section style={{ background: '#f8fafc', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 18 }}>
-            <h2 style={{ marginTop: 0 }}>Como a IA analisa vídeos</h2>
-            <ul style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
-              <li>Crescimento de views nas últimas 48h.</li>
-              <li>Engajamento: (likes + comentários + shares) / views.</li>
-              <li>Saturação: baixa quando o crescimento acelera rápido.</li>
-              <li>Probabilidade semanal combina score + crescimento + engajamento.</li>
-            </ul>
-          </section>
           <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0' }}>
-            <h2 style={{ marginTop: 0 }}>Sinais recentes</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
-              {topSignals.map((s) => (
-                <div key={s.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{s.type}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{s.value}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{s.region || '—'}</div>
-                  <div style={{ height: 6, background: '#e2e8f0', borderRadius: 999, marginTop: 8 }}>
-                    <div
-                      style={{
-                        height: 6,
-                        width: `${Math.min(100, s.growthPercent)}%`,
-                        background: '#22c55e',
-                        borderRadius: 999,
-                      }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>
-                    +{s.growthPercent.toFixed(1)}%
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h2 style={{ marginTop: 0 }}>Alertas recentes</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
