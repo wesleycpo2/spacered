@@ -164,7 +164,7 @@ export function AdminDashboardPage() {
     }
   }
 
-  async function handleResetAndCollect() {
+  async function handleResetData() {
     if (!adminToken) {
       setAdminActionMessage('ADMIN token não configurado.');
       return;
@@ -181,22 +181,10 @@ export function AdminDashboardPage() {
       if (!resetRes.ok) {
         throw new Error(resetPayload.error || resetPayload.message || `Falha ao limpar (${resetRes.status})`);
       }
-
-      setAdminActionMessage('Recoletando dados...');
-      const collectRes = await fetch(`${apiUrl}/admin/collect-all`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ limit: 10 }),
-      });
-      const collectPayload = await collectRes.json().catch(() => ({}));
-      if (!collectRes.ok) {
-        throw new Error(collectPayload.error || collectPayload.message || `Falha ao coletar (${collectRes.status})`);
-      }
-
       await loadOverview();
-      setAdminActionMessage('Dados atualizados.');
+      setAdminActionMessage('Dados limpos.');
     } catch (err) {
-      setAdminActionMessage(err instanceof Error ? err.message : 'Falha ao resetar e coletar.');
+      setAdminActionMessage(err instanceof Error ? err.message : 'Falha ao limpar dados.');
     }
   }
 
@@ -292,7 +280,7 @@ export function AdminDashboardPage() {
                   📣 Enviar alertas
                 </button>
                 <button
-                  onClick={handleResetAndCollect}
+                  onClick={handleResetData}
                   style={{
                     padding: '8px 16px',
                     borderRadius: 999,
@@ -303,7 +291,7 @@ export function AdminDashboardPage() {
                     fontWeight: 600,
                   }}
                 >
-                  ♻ Limpar & Recoletar
+                  🧹 Limpar dados
                 </button>
                 {adminActionMessage && <span style={{ color: '#475569' }}>{adminActionMessage}</span>}
               </div>
