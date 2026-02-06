@@ -311,6 +311,32 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
+  // POST /admin/telegram/invite
+  fastify.post('/admin/telegram/invite', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    try {
+      const adapter = new TelegramAdapter();
+      const inviteLink = await adapter.createChannelInviteLink({
+        memberLimit: 1,
+        expireSeconds: 15 * 60,
+        name: `admin-${Date.now()}`,
+      });
+
+      return reply.send({
+        success: true,
+        data: { inviteLink },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: error?.message || 'Falha ao gerar convite do Telegram.',
+      });
+    }
+  });
+
   // POST /admin/whatsapp-test
   fastify.post('/admin/whatsapp-test', async (request, reply) => {
     const token = request.headers['x-admin-token'] as string | undefined;
