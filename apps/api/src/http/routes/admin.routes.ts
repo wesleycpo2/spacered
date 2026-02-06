@@ -24,6 +24,14 @@ function requireAdmin(requestToken?: string): boolean {
 }
 
 export async function adminRoutes(fastify: FastifyInstance) {
+  // GET /admin/health
+  fastify.get('/admin/health', async (request, reply) => {
+    return reply.send({
+      success: true,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // GET /admin/overview
   fastify.get('/admin/overview', async (request, reply) => {
     const token = request.headers['x-admin-token'] as string | undefined;
