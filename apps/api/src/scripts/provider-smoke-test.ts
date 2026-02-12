@@ -41,19 +41,24 @@ async function main() {
     || (products[0] as any)?.id
     || null;
 
-  if (productId) {
+  // fallback: if product_id not present, try url_title (many RapidAPI responses use url_title)
+  const productUrlTitle = (products[0] as any)?.url_title || (products[0] as any)?.urlTitle || null;
+
+  const candidateId = productId || productUrlTitle;
+
+  if (candidateId) {
     const [detail, metrics] = await Promise.all([
-      collector.fetchProductDetail(String(productId)),
-      collector.fetchProductMetrics(String(productId)),
+      collector.fetchProductDetail(String(candidateId)),
+      collector.fetchProductMetrics(String(candidateId)),
     ]);
 
     logger.info('ℹ️ Detalhes do produto', {
-      productId,
+      productId: candidateId,
       detail,
     });
 
     logger.info('📊 Métricas históricas do produto', {
-      productId,
+      productId: candidateId,
       metrics,
     });
   } else {

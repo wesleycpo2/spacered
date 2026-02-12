@@ -4,7 +4,7 @@
  * Página principal com status da assinatura e seleção de nichos
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api, Niche } from '../services/api';
@@ -32,6 +32,7 @@ interface ProductItem {
   ecomCategory2?: string | null;
   ecomCategory3?: string | null;
   thumbnail?: string | null;
+  lastScrapedAt?: string | null;
   insights?: {
     growth48h: number;
     engagementLabel: string;
@@ -50,6 +51,52 @@ interface TrendSignalItem {
   collectedAt: string;
 }
 
+const compactFormatter = new Intl.NumberFormat('pt-BR', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const numberFormatter = new Intl.NumberFormat('pt-BR');
+
+const signalLabels: Record<string, string> = {
+  HASHTAG: 'Hashtags em alta',
+  SOUND: 'Sons em alta',
+  VIDEO: 'Vídeos em alta',
+};
+
+const signalOrder = ['HASHTAG', 'SOUND', 'VIDEO'];
+
+function formatCompact(value: number | null | undefined) {
+  if (!Number.isFinite(value as number)) {
+    return '—';
+  }
+  return compactFormatter.format(value as number);
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (!Number.isFinite(value as number)) {
+    return '—';
+  }
+  return numberFormatter.format(value as number);
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (!Number.isFinite(value as number)) {
+    return '—';
+  }
+  return `${(value as number).toFixed(1)}%`;
+}
+
+function formatRatioPercent(value: number | null | undefined) {
+  if (!Number.isFinite(value as number)) {
+    return '—';
+  }
+  const numeric = value as number;
+  const normalized = Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
+  const sign = normalized >= 0 ? '' : '-';
+  return `${sign}${Math.abs(normalized).toFixed(1)}%`;
+}
+
 export function DashboardPage() {
   const { user, subscription, logout, refreshSubscription } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +109,80 @@ export function DashboardPage() {
   const [error, setError] = useState('');
   const [telegramMessage, setTelegramMessage] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
+
+  const productSummary = useMemo(() => {
+    if (!products.length) {
+      return {
+        totalViews: 0,
+        totalImpressions: 0,
+        averageViralScore: 0,
+        averageGrowth48h: 0,
+        bestProbability: 0,
+        bestProductTitle: '',
+        topCategory: '',
+      };
+    }
+
+    let viewAccumulator = 0;
+    let impressionAccumulator = 0;
+    let viralScoreAccumulator = 0;
+    let growthAccumulator = 0;
+    let growthSamples = 0;
+    let bestProduct: ProductItem | null = null;
+    const categoryCounter = new Map<string, number>();
+
+    for (const product of products) {
+      const views = Number(product.views ?? 0);
+      const impressions = Number(product.impressions ?? 0);
+
+      viewAccumulator += views;
+      impressionAccumulator += impressions;
+      viralScoreAccumulator += Number(product.viralScore ?? 0);
+
+      if (Number.isFinite(product.insights?.growth48h)) {
+        growthAccumulator += Number(product.insights?.growth48h ?? 0);
+        growthSamples += 1;
+      }
+
+      if (!bestProduct || (product.insights?.probability ?? 0) > (bestProduct.insights?.probability ?? 0)) {
+        bestProduct = product;
+      }
+
+      const categories = [product.ecomCategory1, product.ecomCategory2, product.ecomCategory3].filter(Boolean) as string[];
+      for (const category of categories) {
+        categoryCounter.set(category, (categoryCounter.get(category) || 0) + 1);
+      }
+    }
+
+    const [topCategory] = Array.from(categoryCounter.entries()).sort((a, b) => b[1] - a[1]);
+
+    return {
+      totalViews: viewAccumulator,
+      totalImpressions: impressionAccumulator,
+      averageViralScore: Math.round(viralScoreAccumulator / products.length),
+      averageGrowth48h: growthSamples ? growthAccumulator / growthSamples : 0,
+      bestProbability: bestProduct?.insights?.probability ?? bestProduct?.viralScore ?? 0,
+      bestProductTitle: bestProduct?.title ?? '',
+      topCategory: topCategory ? topCategory[0] : '',
+    };
+  }, [products]);
+
+  const groupedSignals = useMemo(() => {
+    const groups: Record<string, TrendSignalItem[]> = {};
+    for (const signal of signals) {
+      if (!groups[signal.type]) {
+        groups[signal.type] = [];
+      }
+      groups[signal.type].push(signal);
+    }
+    return groups;
+  }, [signals]);
+
+  const orderedSignalTypes = useMemo(() => {
+    const known = signalOrder.filter((type) => groupedSignals[type]?.length);
+    const extras = Object.keys(groupedSignals).filter((type) => !signalOrder.includes(type));
+    return [...known, ...extras];
+  }, [groupedSignals]);
 
   useEffect(() => {
     loadData();
@@ -188,18 +309,29 @@ export function DashboardPage() {
 
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <div style={{ background: '#0f172a', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-          <div style={{ color: '#94a3b8', fontSize: 12 }}>Produtos monitorados</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Produtos monitorados</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{products.length}</div>
+          <div style={{ marginTop: 4, color: '#64748b', fontSize: 12 }}>Top categoria: {productSummary.topCategory || '—'}</div>
         </div>
         <div style={{ background: '#111827', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1f2937' }}>
-          <div style={{ color: '#94a3b8', fontSize: 12 }}>Sinais recentes</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Sinais recentes</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{signals.length}</div>
+          <div style={{ marginTop: 4, color: '#64748b', fontSize: 12 }}>Atualizados nas últimas 48h</div>
         </div>
         <div style={{ background: '#0b1220', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
-          <div style={{ color: '#94a3b8', fontSize: 12 }}>Telegram</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#38bdf8' }}>
-            Canal privado
-          </div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Impressões acumuladas</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{formatCompact(productSummary.totalImpressions || productSummary.totalViews)}</div>
+          <div style={{ marginTop: 4, color: '#64748b', fontSize: 12 }}>Somatório dos itens monitorados</div>
+        </div>
+        <div style={{ background: '#111827', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1f2937' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Crescimento médio 48h</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{formatPercent(productSummary.averageGrowth48h)}</div>
+          <div style={{ marginTop: 4, color: '#64748b', fontSize: 12 }}>Baseado nas tendências recentes</div>
+        </div>
+        <div style={{ background: '#0f172a', color: 'white', borderRadius: 14, padding: 16, border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Melhor oportunidade</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{productSummary.bestProductTitle || 'Sem dados'}</div>
+          <div style={{ color: '#38bdf8', fontWeight: 600 }}>{productSummary.bestProbability ? `${productSummary.bestProbability.toFixed(0)}% probabilidade` : 'Aguardando coleta'}</div>
         </div>
       </section>
 
@@ -282,55 +414,209 @@ export function DashboardPage() {
       </section>
 
       <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-        <h2 style={{ marginTop: 0 }}>Produtos (lista completa)</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Produto</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Score</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Views</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Status</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Link</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td style={{ padding: 8 }}>{p.title}</td>
-                <td style={{ padding: 8 }}>{p.viralScore}</td>
-                <td style={{ padding: 8 }}>{Number(p.views).toLocaleString()}</td>
-                <td style={{ padding: 8 }}>{p.status}</td>
-                <td style={{ padding: 8 }}>
-                  <a href={p.tiktokUrl} target="_blank" rel="noreferrer">Abrir</a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <h2 style={{ marginTop: 0 }}>Produtos monitorados</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, color: '#475569' }}>
+          Indicadores coletados diretamente do TikTok Creative Center (views, impressões, CTR, engajamento e probabilidade calculada).
+        </p>
+
+        {products.length === 0 ? (
+          <p style={{ color: '#64748b' }}>
+            Nenhum produto disponível ainda. Execute a coleta manual ou aguarde o próximo ciclo automático.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {products.map((product) => {
+              const categories = [product.ecomCategory1, product.ecomCategory2, product.ecomCategory3]
+                .filter(Boolean)
+                .join(' • ');
+              const probability = product.insights?.probability ?? null;
+              const growth = product.insights?.growth48h ?? null;
+              const engagementLabel = product.insights?.engagementLabel ?? '—';
+              const saturationLabel = product.insights?.saturationLabel ?? '—';
+              const impressions = product.impressions ?? product.views ?? 0;
+              const postChangeValue = Number(product.postChange);
+              const postChange = Number.isFinite(postChangeValue)
+                ? `${postChangeValue > 0 ? '+' : ''}${postChangeValue}`
+                : '—';
+              const updatedAt = product.lastScrapedAt ? new Date(product.lastScrapedAt) : null;
+
+              return (
+                <article
+                  key={product.id}
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 16,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                    background: '#f8fafc',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {product.thumbnail ? (
+                      <img
+                        src={product.thumbnail}
+                        alt={product.title}
+                        style={{ width: 72, height: 72, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 72,
+                          height: 72,
+                          borderRadius: 12,
+                          background: '#0f172a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {product.title.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <h3 style={{ margin: 0, fontSize: 16 }}>{product.title}</h3>
+                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{product.viralScore}</span>
+                      </div>
+                      <div style={{ color: '#475569', fontSize: 13 }}>
+                        {categories || 'Categoria não informada'}
+                      </div>
+                      <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ background: '#e2e8f0', color: '#0f172a', borderRadius: 999, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                          {product.status}
+                        </span>
+                        <span style={{ background: '#1e293b', color: 'white', borderRadius: 999, padding: '4px 10px', fontSize: 12 }}>
+                          Prob.: {probability ? `${probability.toFixed(0)}%` : '—'}
+                        </span>
+                        <span style={{ background: '#0ea5e9', color: 'white', borderRadius: 999, padding: '4px 10px', fontSize: 12 }}>
+                          Cresc. 48h: {formatPercent(growth)}
+                        </span>
+                        <span style={{ background: '#22c55e', color: 'white', borderRadius: 999, padding: '4px 10px', fontSize: 12 }}>
+                          Engajamento: {engagementLabel}
+                        </span>
+                        <span style={{ background: '#f97316', color: 'white', borderRadius: 999, padding: '4px 10px', fontSize: 12 }}>
+                          Saturação: {saturationLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Views</div>
+                      <div style={{ fontWeight: 600 }}>{formatCompact(product.views)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Impressões</div>
+                      <div style={{ fontWeight: 600 }}>{formatCompact(impressions)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Likes</div>
+                      <div style={{ fontWeight: 600 }}>{formatCompact(product.likes)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Comentários</div>
+                      <div style={{ fontWeight: 600 }}>{formatCompact(product.comments)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Compart.</div>
+                      <div style={{ fontWeight: 600 }}>{formatCompact(product.shares)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>CTR</div>
+                      <div style={{ fontWeight: 600 }}>{formatRatioPercent(product.ctr)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>CVR</div>
+                      <div style={{ fontWeight: 600 }}>{formatRatioPercent(product.cvr)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>CPA</div>
+                      <div style={{ fontWeight: 600 }}>{formatNumber(product.cpa)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Custo</div>
+                      <div style={{ fontWeight: 600 }}>{formatNumber(product.cost)}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Posts</div>
+                      <div style={{ fontWeight: 600 }}>{formatNumber(product.postCount)}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Var.: {postChange}</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 12, padding: 10 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>Play 6s</div>
+                      <div style={{ fontWeight: 600 }}>{formatRatioPercent(product.playSixRate)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <a
+                      href={product.tiktokUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#1d4ed8', fontWeight: 600 }}
+                    >
+                      Abrir no TikTok ↗
+                    </a>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>
+                      Atualizado: {updatedAt ? updatedAt.toLocaleDateString('pt-BR') : '—'}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section style={{ background: 'white', borderRadius: 14, padding: 16, border: '1px solid #e2e8f0', marginBottom: 24 }}>
         <h2 style={{ marginTop: 0 }}>Alertas recentes</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Tipo</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Valor</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Crescimento</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: 8 }}>Região</th>
-            </tr>
-          </thead>
-          <tbody>
-            {signals.map((s) => (
-              <tr key={s.id}>
-                <td style={{ padding: 8 }}>{s.type}</td>
-                <td style={{ padding: 8 }}>{s.value}</td>
-                <td style={{ padding: 8 }}>{s.growthPercent.toFixed(1)}%</td>
-                <td style={{ padding: 8 }}>{s.region || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <p style={{ marginTop: 0, color: '#475569' }}>
+          Principais sinais detectados (hashtags, sons e vídeos) ordenados por crescimento nos últimos dias.
+        </p>
+
+        {signals.length === 0 ? (
+          <p style={{ color: '#64748b' }}>Nenhum sinal registrado no momento.</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {orderedSignalTypes.map((type) => {
+                const list = (groupedSignals[type] || []).slice(0, 6);
+                return (
+                  <div key={type} style={{ border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, background: '#f8fafc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <h3 style={{ margin: 0, fontSize: 16 }}>{signalLabels[type] || type}</h3>
+                      <span style={{ fontSize: 12, color: '#475569' }}>{list.length} itens</span>
+                    </div>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {list.map((signal) => (
+                        <li key={signal.id} style={{ background: 'white', borderRadius: 12, padding: 12, border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{signal.value}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, fontSize: 12 }}>
+                            <span style={{ color: '#0ea5e9', fontWeight: 600 }}>
+                              {signal.growthPercent >= 0 ? '+' : ''}{signal.growthPercent.toFixed(1)}%
+                            </span>
+                            <span style={{ color: '#475569' }}>{signal.category || '—'}</span>
+                            <span style={{ color: '#94a3b8' }}>{signal.region || 'BR'}</span>
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
+                            {new Date(signal.collectedAt).toLocaleString('pt-BR')}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </section>
 
       {/* SELEÇÃO DE NICHOS */}

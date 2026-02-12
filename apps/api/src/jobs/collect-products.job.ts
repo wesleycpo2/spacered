@@ -33,8 +33,12 @@ export async function runProductCollector(limit = 20) {
   logger.info('🛒 Iniciando coleta de produtos em alta', { limit });
 
   const products = await collector.fetchTopProducts(limit);
+  let missingProductId = 0;
 
   for (const item of products) {
+    if (!((item as any).product_id || (item as any).productId || (item as any).id)) {
+      missingProductId += 1;
+    }
     const tiktokUrl = buildProductUrl(item.url_title);
     const title = buildProductTitle(item.url_title);
     const category =
@@ -151,5 +155,8 @@ export async function runProductCollector(limit = 20) {
   }
 
   logger.info('✅ Produtos coletados', { total: products.length });
+  if (missingProductId > 0) {
+    logger.warn('⚠️ Alguns products retornaram sem product_id', { missing: missingProductId });
+  }
   return { total: products.length };
 }
