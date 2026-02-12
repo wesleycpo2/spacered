@@ -7,6 +7,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { prisma } from '../config/prisma';
 
 export interface HashtagTrendItem {
   hashtag: string;
@@ -194,6 +195,32 @@ export class TikTokCollectorService {
     return url.toString();
   }
 
+  private async fetchWithRetry(url: string, init: RequestInit = {}, retries = 3, backoffMs = 500) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (res.ok) return res;
+
+        // handle 429 and 5xx with retry
+        if ((res.status === 429 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+          const retryAfter = res.headers.get('retry-after');
+          const wait = retryAfter ? Number(retryAfter) * 1000 : backoffMs * Math.pow(2, attempt);
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+
+        return res;
+      } catch (err) {
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, backoffMs * Math.pow(2, attempt)));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error('fetchWithRetry: exhausted attempts');
+  }
+
   private logRapidApiSample(params: {
     endpoint: string;
     url: string;
@@ -202,15 +229,33 @@ export class TikTokCollectorService {
     sample?: Record<string, unknown> | null;
   }) {
     if (!this.rapidApiDebug) return;
-
-    logger.info('RapidAPI sample', {
+    const record = {
       fetchedAt: new Date().toISOString(),
       endpoint: params.endpoint,
       requestCountry: params.requestCountry,
       totalItems: params.totalItems,
       sample: params.sample || null,
       url: params.url,
-    });
+    };
+
+    logger.info('RapidAPI sample', record);
+
+    // persist raw response for later inspection (non-blocking)
+    (async () => {
+      try {
+        await prisma.rawResponse.create({
+          data: {
+            endpoint: params.endpoint,
+            requestCountry: params.requestCountry || null,
+            url: params.url,
+            payload: params.sample || {},
+            fetchedAt: new Date(),
+          },
+        });
+      } catch (err) {
+        logger.warn('⚠️ Falha ao salvar raw response', { error: err });
+      }
+    })();
   }
 
   async fetchTrends(limit = 20): Promise<HashtagTrendItem[]> {
@@ -310,7 +355,7 @@ export class TikTokCollectorService {
     const url = this.buildRapidApiUrl('/api/trending/video', videoParams);
 
     try {
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         headers: {
           'x-rapidapi-host': this.rapidApiHost,
           'x-rapidapi-key': this.rapidApiKey,
@@ -322,17 +367,29 @@ export class TikTokCollectorService {
       }
 
       const payload = (await response.json()) as RapidApiTrendingPayload;
-      const list = payload.data?.videos || [];
+      const data = payload.data || {} as any;
+      const list = data.videos || data.list || data.items || data.aweme_list || [];
 
-      const mapped = list.map((item) => ({
-        id: item.id || item.item_id || '',
-        desc: item.title || '',
-        countryCode: (item as any).country_code || (item as any).countryCode,
+      const mapped = list.map((item: any) => ({
+        id: item.id || item.item_id || item.itemId || item.aweme_id || '',
+        desc: item.title || item.desc || item.description || '',
+        countryCode:
+          item.country_code || item.country || item.countryCode || (item as any)?.country_info?.id || null,
         video: {
-          id: item.item_id || item.id,
-          cover: item.cover,
-          playAddr: item.item_url,
-          duration: item.duration,
+          id: item.item_id || item.id || item.aweme_id || null,
+          cover: item.cover || item.video?.cover || item.thumbnail || null,
+          playAddr: item.item_url || item.video?.play_addr || item.video?.playAddr || item.play_url || null,
+          duration: item.duration || item.video?.duration || null,
+        },
+        author: {
+          uniqueId: item.author?.uniqueId || item.author?.unique_id || item.author?.unique_id_str || item.authorName || item.creator || null,
+          nickname: item.author?.nickname || item.author?.nickName || item.authorName || null,
+        },
+        stats: {
+          playCount: item.stats?.playCount || item.stats?.play_count || item.play_count || item.view_count || item.views || null,
+          diggCount: item.stats?.diggCount || item.stats?.digg_count || item.digg_count || item.likes || null,
+          commentCount: item.stats?.commentCount || item.stats?.comment_count || item.comment_count || item.comments || null,
+          shareCount: item.stats?.shareCount || item.stats?.share_count || item.share_count || item.shares || null,
         },
       }));
 
@@ -343,10 +400,8 @@ export class TikTokCollectorService {
         totalItems: list.length,
         sample: list[0]
           ? {
-              id: list[0]?.id || list[0]?.item_id,
-              title: list[0]?.title,
-              country_code: (list[0] as any)?.country_code || (list[0] as any)?.countryCode,
-              createTime: (list[0] as any)?.createTime,
+              raw: list[0],
+              id: list[0]?.id || list[0]?.item_id || list[0]?.aweme_id,
             }
           : null,
       });
@@ -357,7 +412,11 @@ export class TikTokCollectorService {
 
       return mapped.filter((item) => {
         if (!item.countryCode) return false;
-        return item.countryCode.toUpperCase() === this.rapidApiVideoCountry.toUpperCase();
+        try {
+          return String(item.countryCode).toUpperCase() === this.rapidApiVideoCountry.toUpperCase();
+        } catch {
+          return false;
+        }
       });
     } catch (error) {
       logger.warn('⚠️ Falha ao buscar vídeos em alta via RapidAPI', { error });
@@ -381,7 +440,7 @@ export class TikTokCollectorService {
     const url = this.buildRapidApiUrl('/api/trending/top-products', productParams);
 
     try {
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         headers: {
           'x-rapidapi-host': this.rapidApiHost,
           'x-rapidapi-key': this.rapidApiKey,
@@ -393,22 +452,23 @@ export class TikTokCollectorService {
       }
 
       const payload = (await response.json()) as RapidApiTopProductsPayload;
-      const list = payload.data?.list || [];
+      const data = payload.data || {} as any;
+      const list = data.list || data.items || data.products || [];
+
+      const normalized = list.map((item: any) => ({
+        ...item,
+        product_id: item.product_id || item.productId || item.productIdStr || item.id || item.goods_id || item.sku || null,
+      }));
 
       const filtered = this.rapidApiStrictCountry
-        ? list.filter((item) => {
-            const countryCode = item.country_code
-              || (item as any)?.countryCode
-              || (item as any)?.country_info?.id
-              || null;
-
+        ? normalized.filter((item: any) => {
+            const countryCode = item.country_code || item.country || item.countryCode || item?.country_info?.id || null;
             if (!countryCode) {
               return true;
             }
-
-            return countryCode.toUpperCase() === this.rapidApiProductCountry.toUpperCase();
+            return String(countryCode).toUpperCase() === this.rapidApiProductCountry.toUpperCase();
           })
-        : list;
+        : normalized;
 
       this.logRapidApiSample({
         endpoint: 'trending/top-products',
@@ -488,7 +548,8 @@ export class TikTokCollectorService {
       return null;
     }
 
-    const url = this.buildRapidApiUrl('/api/trending/top-products/detail', {
+    // try by product_id first, then fall back to url_title if provided
+    let url = this.buildRapidApiUrl('/api/trending/top-products/detail', {
       product_id: productId,
     });
 
@@ -504,8 +565,25 @@ export class TikTokCollectorService {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const payload = (await response.json()) as RapidApiProductDetailPayload;
-      const info = payload.data?.info || null;
+      let payload = (await response.json()) as RapidApiProductDetailPayload;
+      let info = payload.data?.info || null;
+
+      if (!info && productId && productId.includes('-')) {
+        // maybe caller passed url_title instead of product_id — try fallback param
+        const fallbackUrl = this.buildRapidApiUrl('/api/trending/top-products/detail', {
+          url_title: productId,
+        });
+        const fallbackResp = await this.fetchWithRetry(fallbackUrl, {
+          headers: {
+            'x-rapidapi-host': this.rapidApiHost,
+            'x-rapidapi-key': this.rapidApiKey,
+          },
+        });
+        if (fallbackResp.ok) {
+          payload = (await fallbackResp.json()) as RapidApiProductDetailPayload;
+          info = payload.data?.info || null;
+        }
+      }
 
       this.logRapidApiSample({
         endpoint: 'trending/top-products/detail',
@@ -527,7 +605,8 @@ export class TikTokCollectorService {
       return null;
     }
 
-    const url = this.buildRapidApiUrl('/api/trending/top-products/metrics', {
+    // similar fallback: try product_id then url_title
+    let url = this.buildRapidApiUrl('/api/trending/top-products/metrics', {
       product_id: productId,
     });
 
@@ -543,8 +622,24 @@ export class TikTokCollectorService {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const payload = (await response.json()) as RapidApiProductMetricsPayload;
-      const info = payload.data?.info || null;
+      let payload = (await response.json()) as RapidApiProductMetricsPayload;
+      let info = payload.data?.info || null;
+
+      if (!info && productId && productId.includes('-')) {
+        const fallbackUrl = this.buildRapidApiUrl('/api/trending/top-products/metrics', {
+          url_title: productId,
+        });
+        const fallbackResp = await this.fetchWithRetry(fallbackUrl, {
+          headers: {
+            'x-rapidapi-host': this.rapidApiHost,
+            'x-rapidapi-key': this.rapidApiKey,
+          },
+        });
+        if (fallbackResp.ok) {
+          payload = (await fallbackResp.json()) as RapidApiProductMetricsPayload;
+          info = payload.data?.info || null;
+        }
+      }
 
       this.logRapidApiSample({
         endpoint: 'trending/top-products/metrics',

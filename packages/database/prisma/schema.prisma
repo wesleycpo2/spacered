@@ -304,6 +304,20 @@ model AiReport {
   @@map("ai_reports")
 }
 
+model RawResponse {
+  id           String   @id @default(uuid())
+  endpoint     String
+  requestCountry String?
+  url          String
+  payload      Json
+  fetchedAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([endpoint])
+  @@index([fetchedAt])
+  @@map("raw_responses")
+}
+
 model AutoCollectorState {
   id        String   @id @default(uuid())
   key       String   @unique

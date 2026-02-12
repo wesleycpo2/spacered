@@ -543,4 +543,20 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     return reply.send({ success: true, summary });
   });
+
+  // GET /admin/raw-responses
+  fastify.get('/admin/raw-responses', async (request, reply) => {
+    const token = request.headers['x-admin-token'] as string | undefined;
+    if (!requireAdmin(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const limit = Number((request.query as any)?.limit || 50);
+    const rows = await prisma.rawResponse.findMany({
+      orderBy: { fetchedAt: 'desc' },
+      take: limit,
+    });
+
+    return reply.send({ success: true, total: rows.length, items: rows });
+  });
 }
